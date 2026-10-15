@@ -33,6 +33,7 @@ One commit per area, so the PR can be reviewed commit by commit.
 - Blank the Copilot entitlement, token, MCP registry/connectors and managed-settings URLs. The default-account service skips empty URLs, so nothing calls `api.github.com/copilot_internal/*`.
 - Drop Copilot Chat from `trustedExtensionAuthAccess` and `builtInExtensionsEnabledWithAutoUpdates`, and remove the voice realtime endpoint.
 - `defaultChatAgent` itself stays. About 20 non-AI services read it as a required field; making it optional is phase 2.
+- **Extension marketplace: Open VSX.** Upstream's open-source `product.json` has no `extensionsGallery`; Microsoft adds one only in its closed VS Code build. So builds of this repo had no extension search even before any AI changes. This fork now points at [Open VSX](https://open-vsx.org), the open registry VSCodium uses, with the same endpoints. The Visual Studio Marketplace's terms limit its extensions to Microsoft's own VS Code products, so it isn't configured here.
 
 ### 3. Unwire AI UI contributions from the workbench
 
