@@ -37,7 +37,7 @@ import product from '../../product/common/product.js';
 import { IProtocolMainService } from '../../protocol/electron-main/protocol.js';
 import { getRemoteAuthority } from '../../remote/common/remoteHosts.js';
 import { IStateService } from '../../state/node/state.js';
-import { AgentsWindowOpenSource, IAgentsWindowDraft, IAddRemoveFoldersRequest, INativeOpenFileRequest, INativeWindowConfiguration, IOpenEmptyWindowOptions, IPath, IPathsToWaitFor, isFileToOpen, isFolderToOpen, isWorkspaceToOpen, IWindowOpenable, IWindowSettings } from '../../window/common/window.js';
+import { IAddRemoveFoldersRequest, INativeOpenFileRequest, INativeWindowConfiguration, IOpenEmptyWindowOptions, IPath, IPathsToWaitFor, isFileToOpen, isFolderToOpen, isWorkspaceToOpen, IWindowOpenable, IWindowSettings } from '../../window/common/window.js';
 import { CodeWindow } from './windowImpl.js';
 import { IOpenConfiguration, IOpenEmptyConfiguration, IWindowsCountChangedEvent, IWindowsMainService, OpenContext, getLastFocused } from './windows.js';
 import { findWindowOnExtensionDevelopmentPath, findWindowOnFile, findWindowOnWorkspaceOrFolder } from './windowsFinder.js';
@@ -286,17 +286,6 @@ export class WindowsMainService extends Disposable implements IWindowsMainServic
 
 		// Handle `<app> --wait`
 		this.handleWaitMarkerFile(openConfig, [window]);
-
-		// Handle `<app> chat`
-		this.handleChatRequest(openConfig, [window]);
-	}
-
-	async openAgentsWindow(openConfig: IOpenConfiguration, folderUri?: URI, reveal?: URI | 'new', source?: AgentsWindowOpenSource, folderUriIsDefault = false, draft?: IAgentsWindowDraft, onboardingSessionResource?: URI): Promise<ICodeWindow[]> {
-		// AI removed: the Agents window no longer exists in this build. Every
-		// request for it (CLI `--agents`, protocol links, commands) opens a
-		// regular window instead so the app never ends up without a window.
-		this.logService.info('windowsManager#openAgentsWindow: the Agents window is not available in this build, opening a regular window instead');
-		return this.open(openConfig);
 	}
 
 	async open(openConfig: IOpenConfiguration): Promise<ICodeWindow[]> {
@@ -457,9 +446,6 @@ export class WindowsMainService extends Disposable implements IWindowsMainServic
 		// Handle `<app> --wait`
 		this.handleWaitMarkerFile(openConfig, usedWindows);
 
-		// Handle `<app> chat`
-		this.handleChatRequest(openConfig, usedWindows);
-
 		return usedWindows;
 	}
 
@@ -479,27 +465,6 @@ export class WindowsMainService extends Disposable implements IWindowsMainServic
 					// ignore - could have been deleted from the window already
 				}
 			})();
-		}
-	}
-
-	private handleChatRequest(openConfig: IOpenConfiguration, usedWindows: ICodeWindow[]): void {
-		if (openConfig.context !== OpenContext.CLI || !openConfig.cli.chat || usedWindows.length === 0) {
-			return;
-		}
-
-		let windowHandlingChatRequest: ICodeWindow | undefined;
-		if (usedWindows.length === 1) {
-			windowHandlingChatRequest = usedWindows[0];
-		} else {
-			const chatRequestFolder = openConfig.cli._[0]; // chat request gets cwd() as folder to open
-			if (chatRequestFolder) {
-				windowHandlingChatRequest = findWindowOnWorkspaceOrFolder(usedWindows, URI.file(chatRequestFolder));
-			}
-		}
-
-		if (windowHandlingChatRequest) {
-			windowHandlingChatRequest.sendWhenReady('vscode:handleChatRequest', CancellationToken.None, openConfig.cli.chat);
-			windowHandlingChatRequest.focus();
 		}
 	}
 
