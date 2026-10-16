@@ -73,7 +73,7 @@ import { IContextKeyService } from '../../../../platform/contextkey/common/conte
 import { IContextMenuService, IContextViewService } from '../../../../platform/contextview/browser/contextView.js';
 import { IWorkspaceTrustManagementService, IWorkspaceTrustRequestService } from '../../../../platform/workspace/common/workspaceTrust.js';
 import { IDataChannelService, NullDataChannelService } from '../../../../platform/dataChannel/common/dataChannel.js';
-import { IDefaultAccountService, MANAGED_SETTINGS_FRESHNESS_NOT_REQUIRED } from '../../../../platform/defaultAccount/common/defaultAccount.js';
+import { IDefaultAccountService } from '../../../../platform/defaultAccount/common/defaultAccount.js';
 import { IDialogService } from '../../../../platform/dialogs/common/dialogs.js';
 import { TestDialogService } from '../../../../platform/dialogs/test/common/testDialogService.js';
 import { IHoverService } from '../../../../platform/hover/browser/hover.js';
@@ -85,8 +85,6 @@ import { INotificationService } from '../../../../platform/notification/common/n
 import { TestNotificationService } from '../../../../platform/notification/test/common/testNotificationService.js';
 import { IOpenerService } from '../../../../platform/opener/common/opener.js';
 import { NullOpenerService } from '../../../../platform/opener/test/common/nullOpenerService.js';
-import { IManagedSettingsService, NullManagedSettingsService } from '../../../../platform/policy/common/copilotManagedSettings.js';
-import { AccountPolicyGateState, IAccountPolicyGateService } from '../../../services/policies/common/accountPolicyService.js';
 import { IApplicationSharedStorageValueChangeEvent, IApplicationStorageValueChangeEvent, IProfileStorageValueChangeEvent, IStorageEntry, IStorageService, IStorageTargetChangeEvent, IStorageValueChangeEvent, IWillSaveStateEvent, IWorkspaceStorageValueChangeEvent, StorageScope, StorageTarget, WillSaveStateReason } from '../../../../platform/storage/common/storage.js';
 import { ITelemetryService } from '../../../../platform/telemetry/common/telemetry.js';
 import { NullTelemetryServiceShape } from '../../../../platform/telemetry/common/telemetryUtils.js';
@@ -700,25 +698,11 @@ export function createEditorServices(disposables: DisposableStore, options?: Cre
 	defineInstance(IDefaultAccountService, {
 		_serviceBrand: undefined,
 		onDidChangeDefaultAccount: new Emitter<null>().event,
-		onDidChangePolicyData: new Emitter<null>().event,
-		policyData: null,
 		currentDefaultAccount: null,
-		copilotTokenInfo: null,
-		onDidChangeCopilotTokenInfo: new Emitter<null>().event,
-		managedSettingsFetchStatus: null,
-		managedSettingsFetchedAt: null,
-		managedSettingsRawResponse: null,
-		managedSettingsCompatibilityError: null,
-		onDidChangeManagedSettingsCompatibilityError: Event.None,
-		managedSettingsFreshness: MANAGED_SETTINGS_FRESHNESS_NOT_REQUIRED,
-		onDidChangeManagedSettingsFreshness: Event.None,
 		getDefaultAccount: async () => null,
 		getDefaultAccountAuthenticationProvider: () => ({ id: 'test', name: 'Test', scopes: [], enterprise: false }),
 		resolveGitHubUrl: (path: string) => `https://github.com/${path}`,
-		setDefaultAccountProvider: () => { },
-		refresh: async () => null,
 		signIn: async () => null,
-		signOut: async () => { },
 	});
 
 	const overrideFocus = disposables instanceof FixtureDisposableStore ? disposables.overrideFocus : true;
@@ -796,14 +780,6 @@ export function createEditorServices(disposables: DisposableStore, options?: Cre
  * Use with createEditorServices additionalServices option.
  */
 export function registerWorkbenchServices(registration: ServiceRegistration): void {
-	registration.defineInstance(IManagedSettingsService, new NullManagedSettingsService());
-	const accountPolicyGateService = {
-		_serviceBrand: undefined,
-		gateInfo: { state: AccountPolicyGateState.Inactive },
-		onDidChangeGateInfo: Event.None,
-		async whenInitialized(): Promise<void> { },
-	};
-	registration.defineInstance(IAccountPolicyGateService, accountPolicyGateService);
 	registration.defineInstance(IContextMenuService, {
 		showContextMenu: () => { },
 		onDidShowContextMenu: () => ({ dispose: () => { } }),

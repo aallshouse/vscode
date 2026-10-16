@@ -115,7 +115,6 @@ suite('PolicyConfiguration', () => {
 					name: 'PolicyShared',
 					category: PolicyCategory.Extensions,
 					minimumVersion: '1.0.0',
-					restrictedValue: true,
 					localization: { description: { key: 'shared.owner', value: '' }, }
 				}
 			},
@@ -393,11 +392,9 @@ suite('PolicyConfiguration', () => {
 
 		await testObject.initialize();
 
-		// The owner declares restrictedValue; the reference is a pure pointer. The registered
-		// definition must be the owner's.
+		// The reference is a pure pointer; the registered definition must be the owner's.
 		const definition = policyService.policyDefinitions['PolicyShared'];
 		assert.strictEqual(definition?.type, 'boolean');
-		assert.strictEqual(definition?.restrictedValue, true);
 	});
 
 	test('change: a late-registering owner supersedes an earlier reference definition', async () => {
@@ -406,9 +403,7 @@ suite('PolicyConfiguration', () => {
 		await fileService.writeFile(policyFile, VSBuffer.fromString(JSON.stringify({ 'PolicyOrphanReference': false })));
 		await testObject.initialize();
 
-		// The synthesized reference definition carries no restrictedValue.
 		assert.strictEqual(testObject.configurationModel.getValue('policy.orphanReferenceSetting'), false);
-		assert.strictEqual(policyService.policyDefinitions['PolicyOrphanReference']?.restrictedValue, undefined);
 
 		const ownerNode: IConfigurationNode = {
 			'id': '_test_late_owner',
@@ -421,8 +416,7 @@ suite('PolicyConfiguration', () => {
 						name: 'PolicyOrphanReference',
 						category: PolicyCategory.Extensions,
 						minimumVersion: '1.0.0',
-						restrictedValue: true,
-						localization: { description: { key: 'late.owner', value: '' }, }
+							localization: { description: { key: 'late.owner', value: '' }, }
 					}
 				}
 			}
@@ -433,51 +427,12 @@ suite('PolicyConfiguration', () => {
 			Registry.as<IConfigurationRegistry>(Extensions.Configuration).registerConfiguration(ownerNode);
 			await promise;
 
-			// The owner's definition (with restrictedValue) must now supersede the reference's, and
-			// both settings remain gated by the same policy value.
-			assert.strictEqual(policyService.policyDefinitions['PolicyOrphanReference']?.restrictedValue, true);
+			// Both settings remain gated by the same policy value.
 			assert.strictEqual(testObject.configurationModel.getValue('policy.lateOwner'), false);
 			assert.strictEqual(testObject.configurationModel.getValue('policy.orphanReferenceSetting'), false);
 		} finally {
 			Registry.as<IConfigurationRegistry>(Extensions.Configuration).deregisterConfigurations([ownerNode]);
 		}
-	});
-
-	test('change: deregistering the owner falls back to a surviving reference definition', async () => {
-		await fileService.writeFile(policyFile, VSBuffer.fromString(JSON.stringify({ 'PolicyOrphanReference': false })));
-		await testObject.initialize();
-
-		const ownerNode: IConfigurationNode = {
-			'id': '_test_owner_removal',
-			'type': 'object',
-			'properties': {
-				'policy.removableOwner': {
-					'type': 'boolean',
-					'default': true,
-					policy: {
-						name: 'PolicyOrphanReference',
-						category: PolicyCategory.Extensions,
-						minimumVersion: '1.0.0',
-						restrictedValue: true,
-						localization: { description: { key: 'removable.owner', value: '' }, }
-					}
-				}
-			}
-		};
-		const registry = Registry.as<IConfigurationRegistry>(Extensions.Configuration);
-
-		let promise = Event.toPromise(testObject.onDidChangeConfiguration);
-		registry.registerConfiguration(ownerNode);
-		await promise;
-		assert.strictEqual(policyService.policyDefinitions['PolicyOrphanReference']?.restrictedValue, true);
-
-		// Removing the owner must re-resolve the policy and fall back to the surviving reference,
-		// so the owner-only restrictedValue no longer applies.
-		promise = Event.toPromise(testObject.onDidChangeConfiguration);
-		registry.deregisterConfigurations([ownerNode]);
-		await promise;
-		assert.strictEqual(policyService.policyDefinitions['PolicyOrphanReference']?.restrictedValue, undefined);
-		assert.strictEqual(testObject.configurationModel.getValue('policy.orphanReferenceSetting'), false);
 	});
 
 	test('change: an owning policy update propagates to both the owner and its references', async () => {

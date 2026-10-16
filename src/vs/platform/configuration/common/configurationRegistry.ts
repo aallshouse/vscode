@@ -12,9 +12,8 @@ import * as nls from '../../../nls.js';
 import { getLanguageTagSettingPlainKey } from './configuration.js';
 import { Extensions as JSONExtensions, IJSONContributionRegistry } from '../../jsonschemas/common/jsonContributionRegistry.js';
 import { Registry } from '../../registry/common/platform.js';
-import { IPolicy, IPolicyReference, ManagedSettingValue, PolicyName } from '../../../base/common/policy.js';
+import { IPolicy, IPolicyReference, PolicyName } from '../../../base/common/policy.js';
 import { Disposable } from '../../../base/common/lifecycle.js';
-import product from '../../product/common/product.js';
 
 export enum EditPresentationTypes {
 	Multiline = 'multilineText',
@@ -24,8 +23,6 @@ export enum EditPresentationTypes {
 export const Extensions = {
 	Configuration: 'base.contributions.configuration'
 };
-
-export type ManagedSettingsPresentationValue = ManagedSettingValue | readonly string[] | Readonly<Record<string, readonly string[]>>;
 
 export interface IConfigurationDelta {
 	removedDefaults?: IConfigurationDefaults[];
@@ -299,12 +296,6 @@ export interface IConfigurationPropertySchema extends IJSONSchema {
 	 * The non-null types must match the owning setting (enforced when exporting the policy catalog).
 	 */
 	policyReference?: IPolicyReference;
-
-	/**
-	 * Projects runtime-managed restrictions into the Settings UI without changing configuration values.
-	 * Return undefined when editable. Runtime policy enforcement remains authoritative.
-	 */
-	managedSettingsPresentation?: (read: (key: string) => ManagedSettingValue | undefined, localValue?: unknown) => ManagedSettingsPresentationValue | undefined;
 
 	/**
 	 * When specified, this setting's globally-scoped value is mirrored into the
@@ -836,7 +827,7 @@ class ConfigurationRegistry extends Disposable implements IConfigurationRegistry
 					order: configuration.order,
 					extensionInfo: configuration.extensionInfo
 				};
-				if (validate && validateProperty(key, property, extensionInfo?.id)) {
+				if (validate && validateProperty(key, property)) {
 					delete properties[key];
 					continue;
 				}
@@ -1143,14 +1134,14 @@ export function getDefaultValue(type: string | string[] | undefined) {
 const configurationRegistry = new ConfigurationRegistry();
 Registry.add(Extensions.Configuration, configurationRegistry);
 
-export function validateProperty(property: string, schema: IRegisteredConfigurationPropertySchema, extensionId?: string): string | null {
+export function validateProperty(property: string, schema: IRegisteredConfigurationPropertySchema): string | null {
 	if (!property.trim()) {
 		return nls.localize('config.property.empty', "Cannot register an empty property");
 	}
 	if (OVERRIDE_PROPERTY_REGEX.test(property)) {
 		return nls.localize('config.property.languageDefault', "Cannot register '{0}'. This matches property pattern '\\\\[.*\\\\]$' for describing language specific editor settings. Use 'configurationDefaults' contribution.", property);
 	}
-	if (configurationRegistry.getConfigurationProperties()[property] !== undefined && (!extensionId || !EXTENSION_UNIFICATION_EXTENSION_IDS.has(extensionId.toLowerCase()))) {
+	if (configurationRegistry.getConfigurationProperties()[property] !== undefined) {
 		return nls.localize('config.property.duplicate', "Cannot register '{0}'. This property is already registered.", property);
 	}
 	if (schema.policy && schema.policyReference) {
@@ -1212,6 +1203,3 @@ export function parseScope(scope: string): ConfigurationScope {
 			return ConfigurationScope.WINDOW;
 	}
 }
-
-// Used for extension unification. Should be removed when complete.
-export const EXTENSION_UNIFICATION_EXTENSION_IDS: Set<string> = new Set(product.defaultChatAgent ? [product.defaultChatAgent.extensionId, product.defaultChatAgent.chatExtensionId].map(id => id.toLowerCase()) : []);

@@ -134,7 +134,6 @@ import './services/editor/browser/editorPaneService.js';
 import './services/editor/common/customEditorLabelService.js';
 import './services/dataChannel/browser/dataChannelService.js';
 import './services/github/browser/githubService.js';
-import './services/inlineCompletions/common/inlineCompletionsUnification.js';
 import './services/log/common/defaultLogLevels.js';
 
 import { InstantiationType, registerSingleton } from '../platform/instantiation/common/extensions.js';
@@ -181,15 +180,6 @@ registerSingleton(IWebWorkerService, WebWorkerService, InstantiationType.Delayed
 
 
 //#region --- workbench contributions
-
-// Default Account
-import './services/accounts/browser/defaultAccount.js';
-
-// Account Policy Gate
-import './services/policies/browser/accountPolicyGate.contribution.js';
-
-// Policy Telemetry
-import './services/policies/browser/policyTelemetry.contribution.js';
 
 // Telemetry
 import './contrib/telemetry/browser/telemetry.contribution.js';

@@ -15,7 +15,6 @@ import { localize } from '../../../../nls.js';
 import { ConfigurationTarget, getLanguageTagSettingPlainKey, IConfigurationValue } from '../../../../platform/configuration/common/configuration.js';
 import { ConfigurationDefaultValueSource, ConfigurationScope, EditPresentationTypes, Extensions, IConfigurationRegistry } from '../../../../platform/configuration/common/configurationRegistry.js';
 import { IProductService } from '../../../../platform/product/common/productService.js';
-import { IManagedSettingsPresentationService } from '../../../services/configuration/common/managedSettingsPresentation.js';
 import { Registry } from '../../../../platform/registry/common/platform.js';
 import { USER_LOCAL_AND_REMOTE_SETTINGS } from '../../../../platform/request/common/request.js';
 import { AgentSandboxSettingId } from '../../../../platform/sandbox/common/settings.js';
@@ -181,7 +180,6 @@ export class SettingsTreeSettingElement extends SettingsTreeElement {
 		private readonly userDataProfileService: IUserDataProfileService,
 		private readonly configurationService: IWorkbenchConfigurationService,
 		private readonly experimentalSettingsService: IExperimentalSettingsService,
-		private readonly managedSettingsPresentationService: IManagedSettingsPresentationService,
 	) {
 		super(sanitizeId(parent.id + '_' + setting.key));
 		this.setting = setting;
@@ -353,8 +351,7 @@ export class SettingsTreeSettingElement extends SettingsTreeElement {
 		// so we reset the default value source to the non-language-specific default value source for now.
 		this.defaultValueSource = this.setting.nonLanguageSpecificDefaultValueSource;
 
-		// Runtime restrictions affect presentation only; they are not VS Code configuration policies.
-		const policyValue = this.managedSettingsPresentationService.getValue(this.setting.key, inspected.value) ?? inspected.policyValue;
+		const policyValue = inspected.policyValue;
 		this.hasPolicyValue = policyValue !== undefined;
 		if (this.hasPolicyValue) {
 			isConfigured = false; // The user did not manually configure the setting themselves.
@@ -588,7 +585,6 @@ export class SettingsTreeModel implements IDisposable {
 		@IUserDataProfileService private readonly _userDataProfileService: IUserDataProfileService,
 		@IProductService private readonly _productService: IProductService,
 		@IExperimentalSettingsService private readonly _experimentalSettingsService: IExperimentalSettingsService,
-		@IManagedSettingsPresentationService private readonly _managedSettingsPresentationService: IManagedSettingsPresentationService,
 	) {
 	}
 
@@ -705,8 +701,7 @@ export class SettingsTreeModel implements IDisposable {
 			this._productService,
 			this._userDataProfileService,
 			this._configurationService,
-			this._experimentalSettingsService,
-			this._managedSettingsPresentationService);
+			this._experimentalSettingsService);
 
 		const nameElements = this._treeElementsBySettingName.get(setting.key) ?? [];
 		nameElements.push(element);
@@ -1027,9 +1022,8 @@ export class SearchResultModel extends SettingsTreeModel {
 		@IUserDataProfileService userDataProfileService: IUserDataProfileService,
 		@IProductService productService: IProductService,
 		@IExperimentalSettingsService experimentalSettingsService: IExperimentalSettingsService,
-		@IManagedSettingsPresentationService managedSettingsPresentationService: IManagedSettingsPresentationService,
 	) {
-		super(viewState, isWorkspaceTrusted, configurationService, languageService, userDataProfileService, productService, experimentalSettingsService, managedSettingsPresentationService);
+		super(viewState, isWorkspaceTrusted, configurationService, languageService, userDataProfileService, productService, experimentalSettingsService);
 		this.settingsOrderByTocIndex = settingsOrderByTocIndex;
 		this.update({ id: 'searchResultModel', label: '' });
 	}

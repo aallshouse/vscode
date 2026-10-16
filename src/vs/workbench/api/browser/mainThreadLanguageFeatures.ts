@@ -39,7 +39,6 @@ import { IInstantiationService } from '../../../platform/instantiation/common/in
 import { DataChannelForwardingTelemetryService, forwardToChannelIf, isCopilotLikeExtension } from '../../../platform/dataChannel/browser/forwardingTelemetryService.js';
 import { IAiEditTelemetryService } from '../../contrib/editTelemetry/browser/telemetry/aiEditTelemetry/aiEditTelemetryService.js';
 import { EditDeltaInfo } from '../../../editor/common/textModelEditSource.js';
-import { IInlineCompletionsUnificationService } from '../../services/inlineCompletions/common/inlineCompletionsUnification.js';
 import { InlineCompletionEndOfLifeEvent, sendInlineCompletionsEndOfLifeTelemetry } from '../../../editor/contrib/inlineCompletions/browser/telemetry.js';
 
 @extHostNamedCustomer(MainContext.MainThreadLanguageFeatures)
@@ -55,7 +54,6 @@ export class MainThreadLanguageFeatures extends Disposable implements MainThread
 		@ILanguageFeaturesService private readonly _languageFeaturesService: ILanguageFeaturesService,
 		@IUriIdentityService private readonly _uriIdentService: IUriIdentityService,
 		@IInstantiationService private readonly _instantiationService: IInstantiationService,
-		@IInlineCompletionsUnificationService private readonly _inlineCompletionsUnificationService: IInlineCompletionsUnificationService,
 	) {
 		super();
 
@@ -87,13 +85,6 @@ export class MainThreadLanguageFeatures extends Disposable implements MainThread
 				}
 			}));
 			updateAllWordDefinitions();
-		}
-
-		if (this._inlineCompletionsUnificationService) {
-			this._register(this._inlineCompletionsUnificationService.onDidStateChange(() => {
-				this._proxy.$acceptInlineCompletionsUnificationState(this._inlineCompletionsUnificationService.state);
-			}));
-			this._proxy.$acceptInlineCompletionsUnificationState(this._inlineCompletionsUnificationService.state);
 		}
 	}
 
@@ -1506,8 +1497,6 @@ class ExtensionBackedInlineCompletionsProvider extends Disposable implements lan
 			extensionId: this.providerId.extensionId!,
 			extensionVersion: this.providerId.extensionVersion!,
 			groupId: extractEngineFromCorrelationId(lifetimeSummary.correlationId) ?? this.groupId,
-			skuPlan: lifetimeSummary.skuPlan,
-			skuType: lifetimeSummary.skuType,
 			performanceMarkers: lifetimeSummary.performanceMarkers,
 			availableProviders: lifetimeSummary.availableProviders,
 			partiallyAccepted: lifetimeSummary.partiallyAccepted,

@@ -14,7 +14,6 @@ import { TestConfigurationService } from '../../../../../platform/configuration/
 import { TestInstantiationService } from '../../../../../platform/instantiation/test/common/instantiationServiceMock.js';
 import { IProductService } from '../../../../../platform/product/common/productService.js';
 import { AgentNetworkDomainSettingId } from '../../../../../platform/networkFilter/common/settings.js';
-import { IManagedSettingsService, NullManagedSettingsService } from '../../../../../platform/policy/common/copilotManagedSettings.js';
 import { AgentSandboxSettingId } from '../../../../../platform/sandbox/common/settings.js';
 import { IWorkbenchConfigurationService } from '../../../../services/configuration/common/configuration.js';
 import { ExperimentalSettingsService, IExperimentalSettingsService } from '../../../../services/configuration/common/experimentalSettings.js';
@@ -23,7 +22,6 @@ import { ISetting, SettingMatchType } from '../../../../services/preferences/com
 import { IUserDataProfileService } from '../../../../services/userDataProfile/common/userDataProfile.js';
 import { TestProductService, TestUserDataProfileService } from '../../../../test/common/workbenchTestServices.js';
 import { EXP_ASSIGNMENT_SETTING_TAG } from '../../common/preferences.js';
-import { IManagedSettingsPresentationService, ManagedSettingsPresentationService } from '../../../../services/configuration/common/managedSettingsPresentation.js';
 
 suite('SettingsTree ExP assignments', () => {
 	const store = ensureNoDisposablesAreLeakedInTestSuite();
@@ -41,8 +39,6 @@ suite('SettingsTree ExP assignments', () => {
 		instantiationService.stub(IProductService, TestProductService);
 		instantiationService.stub(IWorkbenchEnvironmentService, {});
 		instantiationService.stub(IExperimentalSettingsService, assignments);
-		instantiationService.stub(IManagedSettingsService, new NullManagedSettingsService());
-		instantiationService.stub(IManagedSettingsPresentationService, store.add(instantiationService.createInstance(ManagedSettingsPresentationService)));
 		const viewState: ISettingsEditorViewState = { settingsTarget: ConfigurationTarget.USER_LOCAL, tagFilters: new Set([EXP_ASSIGNMENT_SETTING_TAG]) };
 		const model = store.add(instantiationService.createInstance(SearchResultModel, viewState, null, true));
 		const settings = ['test.assigned', 'test.experimental', 'test.modified', 'test.spoofed'].map(key => new class extends mock<ISetting>() {
@@ -165,8 +161,6 @@ suite('SettingsTree deprecation warnings', () => {
 			instantiationService.stub(IProductService, TestProductService);
 			instantiationService.stub(IWorkbenchEnvironmentService, {});
 			instantiationService.stub(IExperimentalSettingsService, store.add(new ExperimentalSettingsService()));
-			instantiationService.stub(IManagedSettingsService, new NullManagedSettingsService());
-			instantiationService.stub(IManagedSettingsPresentationService, store.add(instantiationService.createInstance(ManagedSettingsPresentationService)));
 			const viewState: ISettingsEditorViewState = { settingsTarget: ConfigurationTarget.USER_LOCAL };
 			const model = store.add(search
 				? instantiationService.createInstance(SearchResultModel, viewState, null, true)
@@ -226,8 +220,6 @@ suite('SettingsTree search results', () => {
 		instantiationService.stub(IProductService, TestProductService);
 		instantiationService.stub(IWorkbenchEnvironmentService, {});
 		instantiationService.stub(IExperimentalSettingsService, store.add(new ExperimentalSettingsService()));
-		instantiationService.stub(IManagedSettingsService, new NullManagedSettingsService());
-		instantiationService.stub(IManagedSettingsPresentationService, store.add(instantiationService.createInstance(ManagedSettingsPresentationService)));
 		return store.add(instantiationService.createInstance(SearchResultModel,
 			{ settingsTarget: ConfigurationTarget.USER_LOCAL, query: 'test' }, null, true));
 	}

@@ -37,7 +37,6 @@ import { IExtensionGalleryService, IExtensionManagementService, IGalleryExtensio
 import { IExtensionManifest } from '../../../../platform/extensions/common/extensions.js';
 import { IInstantiationService } from '../../../../platform/instantiation/common/instantiation.js';
 import { ILogService } from '../../../../platform/log/common/log.js';
-import { IManagedSettingsPresentationService } from '../../../services/configuration/common/managedSettingsPresentation.js';
 import { IProductService } from '../../../../platform/product/common/productService.js';
 import { IEditorProgressService, IProgressRunner } from '../../../../platform/progress/common/progress.js';
 import { Registry } from '../../../../platform/registry/common/platform.js';
@@ -280,7 +279,6 @@ export class SettingsEditor2 extends EditorPane {
 		@IEditorProgressService private readonly editorProgressService: IEditorProgressService,
 		@IUserDataProfileService userDataProfileService: IUserDataProfileService,
 		@IExperimentalSettingsService experimentalSettingsService: IExperimentalSettingsService,
-		@IManagedSettingsPresentationService managedSettingsPresentationService: IManagedSettingsPresentationService,
 	) {
 		super(SettingsEditor2.ID, group, telemetryService, themeService, storageService);
 		this.searchDelayer = this._register(new Delayer(200));
@@ -340,18 +338,6 @@ export class SettingsEditor2 extends EditorPane {
 				this.renderTree();
 			} else if (this.currentSettingsModel) {
 				this.updateElementsByKey(keys);
-			}
-		}));
-
-		this._register(managedSettingsPresentationService.onDidChange(keys => {
-			if (this.currentSettingsModel) {
-				for (const key of keys) {
-					this.settingsTreeModel.value?.updateElementsByName(key);
-					this.searchResultModel?.updateElementsByName(key);
-				}
-				this.searchResultModel?.updateChildren();
-				this.refreshTOCTree();
-				this.renderTree(undefined, true);
 			}
 		}));
 
