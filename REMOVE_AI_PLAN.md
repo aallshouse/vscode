@@ -5,8 +5,8 @@ This fork removes GitHub Copilot and every built-in AI capability from VS Code. 
 | Phase | Branch | What it does | Status |
 |---|---|---|---|
 | 1 | `remove-ai/phase-1-unwire` | Delete the bundled Copilot extension and its build/CI wiring. Unregister every AI user-facing contribution. Disable the Agents window and agent host. Default AI off. | Done |
-| 2 | `remove-ai/phase-2-delete` | Delete the now-dead AI source trees, decouple core code from AI services, and remove the AI dependencies and build steps. | Done (this PR) |
-| 3 | not started | Remove the remaining inert AI plumbing (`isSessionsWindow`, `defaultChatAgent`, Copilot account code, agent sandbox, Rust CLI agent commands). | Planned below |
+| 2 | `remove-ai/phase-2-delete` | Delete the now-dead AI source trees, decouple core code from AI services, and remove the AI dependencies and build steps. | Done |
+| 3 | `remove-ai/phase-3-cleanup` | Remove the remaining inert AI plumbing (`isSessionsWindow`, `defaultChatAgent`, Copilot account code, agent sandbox, Rust CLI agent host, AI telemetry and config). | Done (this PR) |
 
 Decisions taken up front:
 
@@ -135,18 +135,37 @@ All AI `mainThread*`/`extHost*` files, their RPC identifiers in `extHost.protoco
 
 ---
 
-## Phase 3 — remaining AI plumbing (not done yet)
+## Phase 3 — remaining AI plumbing (branch `remove-ai/phase-3-cleanup`)
 
-These were left in place to keep phase 2 reviewable. None of them are reachable as AI features in the UI.
+One commit per area:
 
-- **`isSessionsWindow` and the Agents profile.** About 50 files still check `isSessionsWindow`, which is always false. Remove the flag, the `agentsWindow` configuration-schema overrides, `AGENTS_WINDOW_PROFILE_ID`, `agentPluginsHome`, `resources/win32/sessions.ico` and `IsSessionsWindowContext`.
-- **`product.defaultChatAgent`.** Still read by extension enablement, the gallery, accounts and policies. Make it optional, remove the readers, then drop it from `product.json`.
-- **Copilot account plumbing.** `copilotManagedSettings`, the account policy gate, `defaultAccount` Copilot token/entitlement fields, `copilotVersions`, `agentSdks` and `dictationRuntime` in `IProductConfiguration`.
-- **Agent sandbox and network filter.** `platform/sandbox` and `platform/networkFilter` still exist; the browser view registers the network filter, which is disabled because its settings are no longer registered.
-- **MCP leftovers.** MCP account-access services, the MCP profile resource and MCP settings sync.
-- **Telemetry and misc.** AI edit telemetry, `genAi` OTel attributes, survey questions, `chatHeight` in the notebook cell layout, `TaskRunSource.ChatAgent`, chat menu contribution points in `menusExtensionPoint.ts`, and leftover `chat.*` command IDs and context keys.
-- **Rust CLI.** `cli/src/commands/agent*.rs` and the agent-host tunnel code.
-- **Config files.** Dead `eslint.config.js` import rules, `.eslint-plugin-local` agent-host rules, stylelint known variables and `build/lib/policies/policyData.jsonc` AI policies.
+1. **Agents window plumbing.** Removed `isSessionsWindow`, `IsSessionsWindowContext`, the `agentsWindow` configuration-schema overrides, window enablement and `canMoveViews()`, the Agents profile (`AGENTS_WINDOW_PROFILE_ID`, `agentPluginsHome`, `SYSTEM_PROFILES_HOME`), `canExecuteOnSessionsWindow`/`extensions.supportAgentsWindow` and the `agentsWindowActivation`/`agentsWindowConfiguration` proposals, the Agents i18n project, `sessions.ico`, the window icon override, and the Copilot satisfaction survey. The inert `agentSessionsWorkspace` proposal stays and always reports `false`.
+2. **Copilot account, policy and `defaultChatAgent`.** `IDefaultAccountService` is now an inert service with no Copilot token, entitlement or managed settings. Deleted the Copilot managed-settings and account-policy stack (file/native managed settings, freshness, gate, telemetry, presentation), assignment filters, completions enablement, extension unification, the Copilot gallery special cases and SKU telemetry. Policies now come only from the device (`PolicyChannelClient` on desktop, `NullPolicyService` on web). `defaultChatAgent` and the other AI fields are gone from `product.json` and `IProductConfiguration`.
+3. **Agent sandbox, network filter, web extractor and MCP leftovers.** Deleted `platform/sandbox`, `platform/networkFilter` and `platform/webContentExtractor`; the browser view lost its network filter, sandbox restrictions and agent storage checks. Removed the MCP profile resource, MCP settings sync, the standalone `mcp.json` schema and its configuration-editing associations.
+4. **Rust CLI agent host.** Deleted the `code agent` command family (host, ps, stop, kill, logs, endpoints, relay), the supervisor, registry and selection gateway, the agent host tunnel port and server bridge arguments, and the `ahp`, `ahp-types`, `local-ip-address` and `tokio-tungstenite` direct dependencies. The `--user-data-dir`/`--delegate-to-editor` tunnel flags went with them, along with the editor code that passed them. Also removed the `code chat`/`code agent`/`--add-mcp` and Copilot CLI terminal completions. The tunnel protocol version stays at 6 so existing clients keep recognizing tunnels.
+5. **Lint, build and policy config.** Removed eslint rules, layer targets, module allowances and allowlist entries for deleted code (including the agent-host `_meta` rules), the codex protocol build filters, AI-only stylelint variables, and the chat/agent/MCP/Copilot policies in `policyData.jsonc` (8 policies remain).
+6. **AI edit telemetry and remaining chat hooks.** Deleted the edit telemetry contribution (AI edit attribution and ARC tracking), the orphaned OTel GenAI code and the chat edit sources. The git extension lost the Copilot co-author trailer, AI contribution tracking and Copilot worktree handling; the Mermaid extension lost its chat output renderer and language model tool. Also removed the chat menu contribution points and unused chat MenuIds, notebook `chatHeight`, `TaskRunSource.ChatAgent`, the chat-only image carousel command, and the chat, language-model and agent browser-tool API tests.
+
+### Verification done for phase 3
+
+- `typecheck-diff.sh`-style checks: no new errors for the entry points, all of `src`, or the chunked unit-test type-check, compared with phase 2
+- `di_check.py`: no missing service registrations for the desktop and web entry points
+- node unit tests pass; browser unit tests (Chromium) show no failures beyond the ones phase 2 already has; build script tests pass
+- `cargo check`, `cargo test` and `rustfmt` are clean for the CLI (apart from formatting issues that already exist upstream)
+- eslint is clean
+
+### Still left (deliberately out of scope)
+
+None of these surface AI features; they are inert API surface, generic infrastructure or developer docs:
+
+- **Inert extension API surface** (kept by design): the proposed `vscode.ai`/`chat`/`lm` APIs, the data-channel proposal and its forwarding of inline-completion telemetry to Copilot-like extensions, the inline completion `suggestionId` field, and the `editor.inlineSuggest.experimental.emptyResponseInformation` option.
+- **MCP authentication.** The authentication MCP access/query services and the `mcp.enterpriseManagedAuth.idp` lookup in `mainThreadAuthentication`.
+- **AI flags in core UI.** The AI search toggle in the search view, the `isAI` code-action UI, the `isAI` onboarding tryouts and the `@mcp`/`@agentPlugins` extension queries.
+- **Profiles and sync.** The prompts and language-model profile resources and prompt sync.
+- **GitHub stack.** `platform/github` and the inert `DefaultAccountService`, the browser "share with agent" feature and the Agent storage scope.
+- **Small leftovers.** `VSCodeCoreAssignmentsFilterProvider`, the policy-source API (now device-only), the `logFetchLatency` `'refetch'` value, and the Copilot telemetry property names in the `code-no-telemetry-common-property` lint guard.
+- **Test fixtures.** The policy-conversion fixtures under `build/lib/test` still use chat policy names as sample data.
+- **Repository docs.** `.github/` still has upstream's Copilot issue template, agent definitions, skills and `copilot-instructions.md`. These are maintainer tooling, not product code.
 
 ---
 
@@ -156,4 +175,4 @@ These were left in place to keep phase 2 reviewable. None of them are reachable 
 - **`di_check.py <repo> <ref> <entry.ts>…`** — compares the import closure of each entry point with `ref`. Reports any still-loaded file that injects (`@IFoo` or `accessor.get(IFoo)`) a service whose `registerSingleton` is no longer loaded.
 - **`prune_imports.py <files>`** — removes the unused imports that `tsc` reports after unregistering contributions. Pipe `tsc` output into it.
 
-Delete this file and `scripts/remove-ai/` once phase 3 is merged.
+Delete this file and `scripts/remove-ai/` once you no longer need them for follow-up work.
