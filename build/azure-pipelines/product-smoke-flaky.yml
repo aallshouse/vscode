@@ -122,11 +122,6 @@ resources:
       name: microsoft/vscode-distro
       endpoint: Monaco
       ref: main
-    - repository: capi
-      type: github
-      name: microsoft/vscode-capi
-      endpoint: Monaco
-      ref: main
     - repository: encrypt
       type: github
       name: microsoft/vscode-encrypt
@@ -155,7 +150,6 @@ extends:
       sourceRepositoriesToScan:
         exclude:
           - repository: distro
-          - repository: capi
           - repository: encrypt
           - repository: vsda
           - repository: regexp

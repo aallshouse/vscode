@@ -126,17 +126,6 @@ parameters:
     displayName: "Run sanity tests against this build's artifacts"
     type: boolean
     default: false
-  # SDK -> VS Code integration: override Copilot dependencies with versions
-  # already published to the private feed. 'none' = use the OSS SDK version.
-  # See microsoft/vscode-engineering specs/sdk-vscode-integration.spec.md.
-  - name: VSCODE_SDK_CANARY_VERSION
-    displayName: "SDK canary: @github/copilot-sdk version ('none' = normal build)"
-    type: string
-    default: none
-  - name: VSCODE_CLI_CANARY_VERSION
-    displayName: "Expected SDK-bundled runtime version ('auto' = infer from SDK)"
-    type: string
-    default: auto
 
 variables:
   - name: VSCODE_BUILD_TITLE_PREFIX
@@ -148,18 +137,6 @@ variables:
     value: ${{ ne(variables['Build.Repository.Uri'], 'https://github.com/microsoft/vscode.git') }}
   - name: NPM_REGISTRY
     value: ${{ parameters.NPM_REGISTRY }}
-  # Normalize sentinels back to empty so the override script can distinguish
-  # the normal SDK and inferred runtime paths.
-  - name: VSCODE_SDK_CANARY_VERSION
-    ${{ if eq(parameters.VSCODE_SDK_CANARY_VERSION, 'none') }}:
-      value: ""
-    ${{ else }}:
-      value: ${{ parameters.VSCODE_SDK_CANARY_VERSION }}
-  - name: VSCODE_CLI_CANARY_VERSION
-    ${{ if eq(parameters.VSCODE_CLI_CANARY_VERSION, 'auto') }}:
-      value: ""
-    ${{ else }}:
-      value: ${{ parameters.VSCODE_CLI_CANARY_VERSION }}
   - name: CARGO_REGISTRY
     value: ${{ parameters.CARGO_REGISTRY }}
   - name: VSCODE_QUALITY
@@ -270,11 +247,6 @@ resources:
       name: microsoft/vscode-distro
       endpoint: Monaco
       ref: main
-    - repository: capi
-      type: github
-      name: microsoft/vscode-capi
-      endpoint: Monaco
-      ref: main
     - repository: encrypt
       type: github
       name: microsoft/vscode-encrypt
@@ -303,7 +275,6 @@ extends:
       sourceRepositoriesToScan:
         exclude:
           - repository: distro
-          - repository: capi
           - repository: encrypt
           - repository: vsda
           - repository: regexp
@@ -697,8 +668,6 @@ extends:
                 VSCODE_JOB_DISPLAY_NAME: Smoke Tests (Electron)
                 VSCODE_TEST_IDS:
                   - smoke-electron
-                  - smoke-agents-pac-proxy
-                  - smoke-agents-kerberos-pac-proxy
 
       - ${{ if eq(variables['VSCODE_BUILD_STAGE_MACOS_X64'], true) }}:
         - stage: macOSX64
@@ -784,8 +753,6 @@ extends:
                   VSCODE_JOB_DISPLAY_NAME: Smoke Tests (Electron)
                   VSCODE_TEST_IDS:
                     - smoke-electron
-                    - smoke-agents-pac-proxy
-                    - smoke-agents-kerberos-pac-proxy
 
       # The universal job waits for the unsigned x64 and arm64 client artifacts
       # instead of depending on their stages, so that it runs in parallel.

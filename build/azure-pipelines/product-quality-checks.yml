@@ -112,9 +112,6 @@ jobs:
         displayName: Install dependencies
         condition: and(succeeded(), ne(variables.NODE_MODULES_RESTORED, 'true'))
 
-      - script: node build/azure-pipelines/common/checkNativeOptionalDeps.ts
-        displayName: Verify native optional dependency binaries
-
       - script: node build/azure-pipelines/distro/mixin-npm.ts
         condition: and(succeeded(), ne(variables.NODE_MODULES_RESTORED, 'true'))
         displayName: Mixin distro node modules
@@ -139,8 +136,6 @@ jobs:
           BUILD_SOURCEBRANCH: "$(Build.SourceBranch)"
         continueOnError: true
         condition: and(succeeded(), eq(lower(variables['VSCODE_PUBLISH']), 'true'))
-
-      - template: ./common/mixin-vscode-capi.yml@self
 
       - script: npm exec -- npm-run-all2 -lp core-ci hygiene eslint valid-layers-check define-class-fields-check vscode-dts-compile-check tsec-compile-check test-build-scripts
         env:
