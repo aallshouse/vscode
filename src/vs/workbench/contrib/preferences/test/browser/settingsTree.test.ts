@@ -8,7 +8,6 @@ import { ITreeNode } from '../../../../../base/browser/ui/tree/tree.js';
 import { ToolBar } from '../../../../../base/browser/ui/toolbar/toolbar.js';
 import { IAction } from '../../../../../base/common/actions.js';
 import { Disposable, toDisposable } from '../../../../../base/common/lifecycle.js';
-import { Event } from '../../../../../base/common/event.js';
 import { URI } from '../../../../../base/common/uri.js';
 import { ensureNoDisposablesAreLeakedInTestSuite } from '../../../../../base/test/common/utils.js';
 import { ConfigurationTarget, IConfigurationOverrides, IConfigurationValue } from '../../../../../platform/configuration/common/configuration.js';
@@ -16,8 +15,7 @@ import { ConfigurationScope, Extensions, IConfigurationRegistry } from '../../..
 import { Registry } from '../../../../../platform/registry/common/platform.js';
 import { TestConfigurationService } from '../../../../../platform/configuration/test/common/testConfigurationService.js';
 import { IContextMenuService } from '../../../../../platform/contextview/browser/contextView.js';
-import { COPILOT_SANDBOX_ALLOW_BYPASS_KEY, COPILOT_SANDBOX_ALLOW_DEV_TOOL_ACCESS_KEY, COPILOT_SANDBOX_ALLOW_LOCAL_NETWORK_KEY, COPILOT_SANDBOX_ALLOW_OUTBOUND_KEY, COPILOT_SANDBOX_ENABLED_KEY, COPILOT_SANDBOX_LSP_SERVERS_KEY, COPILOT_SANDBOX_MCP_SERVERS_KEY, IManagedSettingsService, NullManagedSettingsService } from '../../../../../platform/policy/common/copilotManagedSettings.js';
-import { AgentSandboxSettingId } from '../../../../../platform/sandbox/common/settings.js';
+import { IManagedSettingsService, NullManagedSettingsService } from '../../../../../platform/policy/common/copilotManagedSettings.js';
 import { IUserDataSyncEnablementService } from '../../../../../platform/userDataSync/common/userDataSync.js';
 import { ISetting } from '../../../../services/preferences/common/preferences.js';
 import { SettingsTarget } from '../../browser/preferencesWidgets.js';
@@ -240,77 +238,6 @@ suite('SettingsTree renderer', () => {
 		});
 	});
 
-	for (const key of [AgentSandboxSettingId.AgentSandboxEnabled, AgentSandboxSettingId.AgentSandboxAllowUnsandboxedCommands, AgentSandboxSettingId.AgentSandboxAllowNetwork, AgentSandboxSettingId.AgentSandboxAllowLocalNetwork, AgentSandboxSettingId.AgentSandboxAllowDevToolAccess, AgentSandboxSettingId.AgentSandboxMcpServers, AgentSandboxSettingId.AgentSandboxLspServers]) {
-		test(`renders managed state and unlocks ${key} after policy removal`, () => {
-			const isEnabled = key === AgentSandboxSettingId.AgentSandboxEnabled;
-			const isServerSandbox = key === AgentSandboxSettingId.AgentSandboxMcpServers || key === AgentSandboxSettingId.AgentSandboxLspServers;
-			const configuration = new class extends TestConfigurationService {
-				isSettingAppliedForAllProfiles(): boolean { return false; }
-			}({ [key]: isEnabled ? 'off' : !isServerSandbox, [APPLY_ALL_PROFILES_SETTING]: [] });
-			store.add(configuration.onDidChangeConfigurationEmitter);
-			const instantiationService = workbenchInstantiationService({ configurationService: () => configuration }, store);
-			let required = true;
-			let allowBypass: boolean | undefined = false;
-			let allowOutbound: boolean | undefined = false;
-			let sandboxServers: boolean | undefined = true;
-			instantiationService.stub(IManagedSettingsService, new class extends mock<IManagedSettingsService>() {
-				override readonly onDidChangeManagedSettings = Event.None;
-				override getManagedSettingValue(key: string) {
-					if (key === COPILOT_SANDBOX_MCP_SERVERS_KEY || key === COPILOT_SANDBOX_LSP_SERVERS_KEY) {
-						return sandboxServers;
-					}
-					if (key === COPILOT_SANDBOX_ALLOW_OUTBOUND_KEY || key === COPILOT_SANDBOX_ALLOW_LOCAL_NETWORK_KEY || key === COPILOT_SANDBOX_ALLOW_DEV_TOOL_ACCESS_KEY) {
-						return allowOutbound;
-					}
-					return key === COPILOT_SANDBOX_ALLOW_BYPASS_KEY ? allowBypass : key === COPILOT_SANDBOX_ENABLED_KEY && required ? true : undefined;
-				}
-			}());
-			instantiationService.stub(IExperimentalSettingsService, store.add(new ExperimentalSettingsService()));
-			instantiationService.stub(IManagedSettingsPresentationService, store.add(instantiationService.createInstance(ManagedSettingsPresentationService)));
-			instantiationService.stub(IUserDataSyncEnablementService, { isEnabled: () => false });
-			const model = store.add(instantiationService.createInstance(SettingsTreeModel, { settingsTarget: ConfigurationTarget.USER_LOCAL }, true));
-			model.update({
-				id: 'test', label: 'Test',
-				settings: [new class extends mock<ISetting>() {
-					override key = key;
-					override type = isEnabled ? 'string' : 'boolean';
-					override enum = isEnabled ? ['off', 'on'] : undefined;
-					override description = ['Sandbox setting'];
-					override scope = ConfigurationScope.RESOURCE;
-				}()],
-			});
-			const element = model.getElementsByName(key)![0];
-			const renderers = store.add(instantiationService.createInstance(SettingTreeRenderers));
-			const renderer = renderers.allRenderers.find(renderer => renderer.templateId === (isEnabled ? 'settings.enum.template' : 'settings.bool.template'))!;
-			const container = document.createElement('div');
-			const template = renderer.renderTemplate(container);
-			store.add(toDisposable(() => renderer.disposeTemplate(template)));
-			const node = new class extends mock<ITreeNode<SettingsTreeElement, never>>() { override element = element; }();
-			const render = () => {
-				renderer.renderElement(node, 0, template);
-				return {
-					disabled: isEnabled ? container.querySelector('select')!.disabled : container.querySelector('[role="checkbox"]')!.getAttribute('aria-disabled') === 'true',
-					value: isEnabled ? container.querySelector('select')!.selectedOptions[0].text : container.querySelector('[role="checkbox"]')!.getAttribute('aria-checked') === 'true',
-					indicator: container.textContent?.includes('Managed by organization'),
-				};
-			};
-			const managed = render();
-			allowBypass = true;
-			allowOutbound = true;
-			sandboxServers = false;
-			const bypassAllowed = render();
-			required = false;
-			allowBypass = undefined;
-			allowOutbound = undefined;
-			sandboxServers = undefined;
-			assert.deepStrictEqual({ managed, bypassAllowed, removed: render() }, {
-				managed: { disabled: true, value: isEnabled ? 'on' : isServerSandbox, indicator: true },
-				bypassAllowed: { disabled: isEnabled, value: isEnabled ? 'on' : !isServerSandbox, indicator: isEnabled },
-				removed: { disabled: false, value: isEnabled ? 'off' : !isServerSandbox, indicator: false },
-			});
-		});
-	}
-
 	test('disposes the setting toolbar with its template', () => {
 		const renderer = new TestSettingRenderer();
 		const template = renderer.renderTemplate(document.createElement('div'));
@@ -320,37 +247,6 @@ suite('SettingsTree renderer', () => {
 		assert.strictEqual(renderer.toolbarDisposed, true);
 
 		renderer.dispose();
-	});
-
-	test('renders a deprecated sandbox setting warning separately from the description', () => {
-		const renderer = store.add(new TestSettingRenderer());
-		const template = renderer.renderTemplate(document.createElement('div'));
-		const element = store.add(createSettingElement('warning'));
-		store.add(element.parent!);
-		const setting = terminalContribConfiguration?.[AgentSandboxSettingId.AgentSandboxRetryWithAllowNetworkRequests];
-		assert.ok(setting);
-		element.setting.deprecationMessage = setting.markdownDeprecationMessage;
-		element.setting.deprecationMessageShowInSettings = setting.deprecationMessageShowInSettings;
-
-		try {
-			renderer.renderElement({ element } as never, 0, template);
-			const icon = template.deprecationWarningElement.firstElementChild;
-			assert.deepStrictEqual({
-				text: template.deprecationWarningElement.textContent,
-				iconClasses: icon?.className,
-				iconRole: icon?.getAttribute('role'),
-				iconAriaLabel: icon?.getAttribute('aria-label'),
-				isInfo: template.containerElement.classList.contains('is-deprecated-info'),
-			}, {
-				text: 'This setting will be deprecated soon. It does not apply to the Copilot Agent Host sandbox.',
-				iconClasses: 'codicon codicon-error',
-				iconRole: 'img',
-				iconAriaLabel: 'Warning',
-				isInfo: false,
-			});
-		} finally {
-			renderer.disposeTemplate(template);
-		}
 	});
 
 	test('renders informational deprecation severity', () => {

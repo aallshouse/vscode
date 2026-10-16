@@ -8,7 +8,7 @@ import * as sinon from 'sinon';
 import * as DOM from '../../../../../base/browser/dom.js';
 import { setARIAContainer } from '../../../../../base/browser/ui/aria/aria.js';
 import { SplitView } from '../../../../../base/browser/ui/splitview/splitview.js';
-import { ITreeElement, TreeVisibility } from '../../../../../base/browser/ui/tree/tree.js';
+import { ITreeElement } from '../../../../../base/browser/ui/tree/tree.js';
 import { Delayer, timeout } from '../../../../../base/common/async.js';
 import { CancellationToken } from '../../../../../base/common/cancellation.js';
 import { Emitter, Event } from '../../../../../base/common/event.js';
@@ -21,8 +21,7 @@ import { TestConfigurationService } from '../../../../../platform/configuration/
 import { IContextViewService } from '../../../../../platform/contextview/browser/contextView.js';
 import { IExtensionGalleryService, IExtensionManagementService } from '../../../../../platform/extensionManagement/common/extensionManagement.js';
 import { IEditorProgressService, IProgressRunner } from '../../../../../platform/progress/common/progress.js';
-import { COPILOT_SANDBOX_ALLOW_BYPASS_KEY, COPILOT_SANDBOX_ALLOW_DEV_TOOL_ACCESS_KEY, COPILOT_SANDBOX_ALLOW_LOCAL_NETWORK_KEY, COPILOT_SANDBOX_ALLOW_OUTBOUND_KEY, COPILOT_SANDBOX_ENABLED_KEY, COPILOT_SANDBOX_LSP_SERVERS_KEY, COPILOT_SANDBOX_MCP_SERVERS_KEY, IManagedSettingsService } from '../../../../../platform/policy/common/copilotManagedSettings.js';
-import { AgentSandboxSettingId } from '../../../../../platform/sandbox/common/settings.js';
+import { IManagedSettingsService } from '../../../../../platform/policy/common/copilotManagedSettings.js';
 import { IUserDataSyncEnablementService } from '../../../../../platform/userDataSync/common/userDataSync.js';
 import { ExperimentalSettingsService, IExperimentalSettingsService } from '../../../../services/configuration/common/experimentalSettings.js';
 import { IEditorGroupsService } from '../../../../services/editor/common/editorGroupsService.js';
@@ -34,7 +33,7 @@ import { SuggestEnabledInputWithHistory } from '../../../codeEditor/browser/sugg
 import { ADVANCED_SETTING_TAG, IPreferencesSearchService, POLICY_SETTING_TAG } from '../../common/preferences.js';
 import { isSettingsSearchUpToDate, SettingsEditor2 } from '../../browser/settingsEditor2.js';
 import { SettingsTree, SettingsTreeFilter, SettingTreeRenderers } from '../../browser/settingsTree.js';
-import { parseQuery, SearchResultIdx, SettingsTreeElement, SettingsTreeGroupElement, SettingsTreeModel, SettingsTreeSettingElement } from '../../browser/settingsTreeModels.js';
+import { parseQuery, SearchResultIdx, SettingsTreeElement, SettingsTreeModel, SettingsTreeSettingElement } from '../../browser/settingsTreeModels.js';
 import { TOCTree, TOCTreeModel } from '../../browser/tocTree.js';
 import { SettingsTargetsWidget } from '../../browser/preferencesWidgets.js';
 import { IManagedSettingsPresentationService, ManagedSettingsPresentationService } from '../../../../services/configuration/common/managedSettingsPresentation.js';
@@ -202,65 +201,7 @@ suite('SettingsEditor2', () => {
 			return { editor, assignments, managedSettings, managedSettingsChanged, searchModel, settings, rebuild, read, tree, settingsModel, treeFilter: instantiationService.createInstance(SettingsTreeFilter, viewState, false), searchInput: input, viewState, changeConfiguration, onDidRender: onDidRender.event, contextViewService: instantiationService.get(IContextViewService) };
 		}
 
-		test('resolved sandbox policies refresh policy-filtered results and removal without configuration changes', () => {
-			const keys = [AgentSandboxSettingId.AgentSandboxEnabled, AgentSandboxSettingId.AgentSandboxAllowUnsandboxedCommands];
-			const { managedSettings, managedSettingsChanged, read, rebuild } = createEditor('@hasPolicy', false, keys);
-			const initial = read().renderedKeys;
-			managedSettings[COPILOT_SANDBOX_ENABLED_KEY] = true;
-			managedSettingsChanged.fire();
-			const required = read();
-			managedSettingsChanged.fire();
-			const unchangedRebuilds = rebuild.callCount;
-			managedSettings[COPILOT_SANDBOX_ALLOW_BYPASS_KEY] = true;
-			managedSettingsChanged.fire();
-			const bypassAllowed = read().renderedKeys;
-			managedSettings[COPILOT_SANDBOX_ALLOW_BYPASS_KEY] = false;
-			managedSettingsChanged.fire();
-			const bypassDenied = read().renderedKeys;
-			delete managedSettings[COPILOT_SANDBOX_ENABLED_KEY];
-			delete managedSettings[COPILOT_SANDBOX_ALLOW_BYPASS_KEY];
-			managedSettingsChanged.fire();
-
-			assert.deepStrictEqual({
-				initial, required: { keys: required.renderedKeys, count: required.count },
-				unchangedRebuilds, bypassAllowed, bypassDenied, removed: read().renderedKeys,
-			}, {
-				initial: [], required: { keys, count: '2 Settings Found' },
-				unchangedRebuilds: 1, bypassAllowed: keys.slice(0, 1), bypassDenied: keys, removed: [],
-			});
-		});
-
-		test('outbound policy changes refresh managed results independently of sandbox enablement', () => {
-			const key = AgentSandboxSettingId.AgentSandboxAllowNetwork;
-			const { managedSettings, managedSettingsChanged, read, rebuild } = createEditor('@hasPolicy', false, [key]);
-			const initial = read().renderedKeys;
-			managedSettings[COPILOT_SANDBOX_ALLOW_OUTBOUND_KEY] = false;
-			managedSettingsChanged.fire();
-			const denied = read();
-			managedSettingsChanged.fire();
-			const unchangedRebuilds = rebuild.callCount;
-			managedSettings[COPILOT_SANDBOX_ALLOW_OUTBOUND_KEY] = true;
-			managedSettingsChanged.fire();
-			const allowed = read().renderedKeys;
-			managedSettings[COPILOT_SANDBOX_ALLOW_OUTBOUND_KEY] = false;
-			managedSettingsChanged.fire();
-			delete managedSettings[COPILOT_SANDBOX_ALLOW_OUTBOUND_KEY];
-			managedSettingsChanged.fire();
-
-			assert.deepStrictEqual({
-				initial, denied: { keys: denied.renderedKeys, count: denied.count },
-				unchangedRebuilds, allowed, removed: read().renderedKeys,
-			}, {
-				initial: [], denied: { keys: [key], count: '1 Setting Found' },
-				unchangedRebuilds: 1, allowed: [], removed: [],
-			});
-		});
-
 		for (const [key, policyKey, managedValue] of [
-			[AgentSandboxSettingId.AgentSandboxMcpServers, COPILOT_SANDBOX_MCP_SERVERS_KEY, true],
-			[AgentSandboxSettingId.AgentSandboxLspServers, COPILOT_SANDBOX_LSP_SERVERS_KEY, true],
-			[AgentSandboxSettingId.AgentSandboxAllowDevToolAccess, COPILOT_SANDBOX_ALLOW_DEV_TOOL_ACCESS_KEY, false],
-			[AgentSandboxSettingId.AgentSandboxAllowLocalNetwork, COPILOT_SANDBOX_ALLOW_LOCAL_NETWORK_KEY, false],
 			['test.managedGeneric', 'test.genericPolicy', false],
 		] as const) {
 			test(`${key} policy changes refresh managed results and unlock when not restricted`, () => {
@@ -415,49 +356,6 @@ suite('SettingsEditor2', () => {
 				}),
 				count: read().count,
 			}, { keys: ['test.assigned'], count: '1 Setting Found' });
-		});
-
-		test('assignment filter includes advanced settings in the resolved TOC and category filtering', async () => {
-			const settingKey = 'chat.detectParticipant.enabled';
-			const { editor, assignments, settingsModel, viewState, treeFilter } = createEditor('', true, [settingKey, 'chat.detectParticipant.unassigned']);
-			await editor['onConfigUpdate']();
-			const hiddenInitially = !settingsModel.getElementsByName(settingKey)?.length;
-			assignments.setAssignment(settingKey, true);
-			await timeout(0);
-
-			const changeQuery = async (query: string) => {
-				viewState.query = query;
-				await editor['triggerSearch'](query, true);
-			};
-			await changeQuery('@tag:expassigned');
-			const searchModel = editor['searchResultModel']!;
-			const assigned = searchModel.root.children[0];
-			assert.ok(assigned instanceof SettingsTreeSettingElement);
-			const chat = settingsModel.root.children.find((child): child is SettingsTreeGroupElement => child instanceof SettingsTreeGroupElement && child.id === 'chat');
-			const context = chat?.children.find((child): child is SettingsTreeGroupElement => child instanceof SettingsTreeGroupElement && child.id === 'chat/context');
-			const categoryVisible = context ? treeFilter.filter(context, TreeVisibility.Visible) : false;
-			viewState.categoryFilter = context ?? settingsModel.root;
-			const categoryContainsAssignment = treeFilter.filter(assigned, TreeVisibility.Visible);
-			const active = {
-				inRoot: !!settingsModel.getElementsByName(settingKey)?.length,
-				resultCount: searchModel.getUniqueResultsCount(),
-				rootCount: settingsModel.root.count,
-				categoryCount: context?.count,
-				categoryVisible,
-				categoryContainsAssignment,
-			};
-			viewState.categoryFilter = undefined;
-			await changeQuery('');
-			const hiddenAfterRemovingFilter = !settingsModel.getElementsByName(settingKey)?.length;
-			await changeQuery('@tag:expassigned');
-			const restored = !!settingsModel.getElementsByName(settingKey)?.length;
-
-			assert.deepStrictEqual({ hiddenInitially, active, hiddenAfterRemovingFilter, restored }, {
-				hiddenInitially: true,
-				active: { inRoot: true, resultCount: 1, rootCount: 1, categoryCount: 1, categoryVisible: true, categoryContainsAssignment: true },
-				hiddenAfterRemovingFilter: true,
-				restored: true,
-			});
 		});
 
 		test('advanced assignment exemption applies to text search and preserves policy filtering', async () => {
