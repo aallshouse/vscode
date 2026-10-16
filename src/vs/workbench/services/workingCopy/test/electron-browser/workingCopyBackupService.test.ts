@@ -53,7 +53,6 @@ const NULL_PROFILE = {
 	promptsHome: joinPath(homeDir, 'prompts'),
 	extensionsResource: joinPath(homeDir, 'extensions.json'),
 	cacheHome: joinPath(homeDir, 'cache'),
-	agentPluginsHome: joinPath(homeDir, 'agentPluginsHome'),
 };
 
 const TestNativeWindowConfiguration: INativeWindowConfiguration = {

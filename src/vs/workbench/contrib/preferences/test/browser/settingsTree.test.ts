@@ -100,7 +100,6 @@ function createSettingElement(deprecationMessageSeverity: 'warning' | 'info'): S
 		{ extensionRecommendations: undefined } as never,
 		{ currentProfile: { isDefault: true } } as never,
 		new TestConfigurationService() as unknown as never,
-		false,
 		new class extends mock<IExperimentalSettingsService>() { override hasAssignment() { return false; } }(),
 		new class extends mock<IManagedSettingsPresentationService>() { override getValue() { return undefined; } }(),
 	);
@@ -141,7 +140,7 @@ suite('SettingsTree renderer', () => {
 				store.add(service.onDidChangeConfigurationEmitter);
 			}
 			const instantiationService = workbenchInstantiationService({ configurationService: () => configuration }, store);
-			instantiationService.stub(IWorkbenchEnvironmentService, { isSessionsWindow: true });
+			instantiationService.stub(IWorkbenchEnvironmentService, {});
 			instantiationService.stub(IManagedSettingsService, new NullManagedSettingsService());
 			instantiationService.stub(IManagedSettingsPresentationService, store.add(instantiationService.createInstance(ManagedSettingsPresentationService)));
 			instantiationService.stub(IExperimentalSettingsService, store.add(new ExperimentalSettingsService()));
@@ -187,25 +186,6 @@ suite('SettingsTree renderer', () => {
 				await action.run(element);
 			};
 			return { changes, removeLastItem, reset, render, scoped, key, element, userValue };
-		}
-
-		for (const defaultValue of [[], ['default-command']]) {
-			test(`preserves the explicit ${defaultValue.length ? 'nonempty' : 'empty'} default array when clearing an inherited Agents value`, async () => {
-				const { changes, removeLastItem, render, scoped, key, element } = renderArray(ConfigurationTarget.WORKSPACE, defaultValue, true);
-				removeLastItem();
-				await scoped.setUserConfiguration(key, changes[0].value);
-				render();
-
-				assert.deepStrictEqual({
-					changes,
-					displayed: element.value,
-					configured: element.isConfigured,
-				}, {
-					changes: [{ value: defaultValue, manualReset: false }],
-					displayed: defaultValue,
-					configured: true,
-				});
-			});
 		}
 
 		for (const { name, target, expected } of [

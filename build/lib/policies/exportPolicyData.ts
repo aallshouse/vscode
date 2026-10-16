@@ -66,15 +66,12 @@ function readPolicyData(path: string): ExportedPolicyDataDto {
 	return result;
 }
 
-function runPolicyExport(codeScript: string, outputPath: string, userDataPath: string, extensionsPath: string, agents: boolean): Promise<void> {
+function runPolicyExport(codeScript: string, outputPath: string, userDataPath: string, extensionsPath: string): Promise<void> {
 	const args = [
 		`--export-policy-data=${outputPath}`,
 		`--user-data-dir=${userDataPath}`,
 		`--extensions-dir=${extensionsPath}`,
 	];
-	if (agents) {
-		args.unshift('--agents');
-	}
 
 	const env = { ...process.env };
 	delete env['VSCODE_PORTABLE'];
@@ -142,24 +139,12 @@ async function main(): Promise<void> {
 
 	try {
 		const workbenchPath = join(temporaryRoot, 'w.jsonc');
-		const agentsPath = join(temporaryRoot, 'a.jsonc');
 
 		console.log('Exporting policy data from the Workbench...');
-		console.log('Exporting policy data from the Agents window...');
-		const exportResults = await Promise.allSettled([
-			runPolicyExport(codeScript, workbenchPath, join(temporaryRoot, 'wu'), join(temporaryRoot, 'we'), false),
-			runPolicyExport(codeScript, agentsPath, join(temporaryRoot, 'au'), join(temporaryRoot, 'ae'), true),
-		]);
-		const exportErrors = exportResults
-			.filter((result): result is PromiseRejectedResult => result.status === 'rejected')
-			.map(result => result.reason);
-		if (exportErrors.length > 0) {
-			throw new AggregateError(exportErrors, 'Failed to export policy data.');
-		}
+		await runPolicyExport(codeScript, workbenchPath, join(temporaryRoot, 'wu'), join(temporaryRoot, 'we'));
 
 		const mergedContent = serializePolicyData(mergePolicyData([
 			{ source: 'Workbench', data: readPolicyData(workbenchPath) },
-			{ source: 'Agents window', data: readPolicyData(agentsPath) },
 		]));
 
 		if (values.check) {

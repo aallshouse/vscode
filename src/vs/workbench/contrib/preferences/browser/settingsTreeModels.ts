@@ -23,7 +23,7 @@ import { APPLICATION_SCOPES, FOLDER_SCOPES, IWorkbenchConfigurationService, LOCA
 import { IWorkbenchEnvironmentService } from '../../../services/environment/common/environmentService.js';
 import { IExtensionSetting, ISearchResult, ISetting, ISettingMatch, SettingMatchType, SettingValueType } from '../../../services/preferences/common/preferences.js';
 import { IUserDataProfileService } from '../../../services/userDataProfile/common/userDataProfile.js';
-import { AGENTS_WINDOW_SETTING_TAG, ENABLE_EXTENSION_TOGGLE_SETTINGS, ENABLE_LANGUAGE_FILTER, EXP_ASSIGNMENT_SETTING_TAG, MODIFIED_SETTING_TAG, POLICY_SETTING_TAG, REQUIRE_TRUSTED_WORKSPACE_SETTING_TAG, compareTwoNullableNumbers, wordifyKey } from '../common/preferences.js';
+import { ENABLE_EXTENSION_TOGGLE_SETTINGS, ENABLE_LANGUAGE_FILTER, EXP_ASSIGNMENT_SETTING_TAG, MODIFIED_SETTING_TAG, POLICY_SETTING_TAG, REQUIRE_TRUSTED_WORKSPACE_SETTING_TAG, compareTwoNullableNumbers, wordifyKey } from '../common/preferences.js';
 import { SettingsTarget } from './preferencesWidgets.js';
 import { ITOCEntry, tocData } from './settingsLayout.js';
 import { IExperimentalSettingsService } from '../../../services/configuration/common/experimentalSettings.js';
@@ -158,11 +158,6 @@ export class SettingsTreeSettingElement extends SettingsTreeElement {
 	 */
 	hasPolicyValue = false;
 
-	/**
-	 * Whether the setting is read-only in the Agents window.
-	 */
-	isAgentsWindowReadOnly = false;
-
 	tags?: Set<string>;
 	overriddenScopeList: string[] = [];
 	overriddenDefaultsLanguageList: string[] = [];
@@ -185,7 +180,6 @@ export class SettingsTreeSettingElement extends SettingsTreeElement {
 		private readonly productService: IProductService,
 		private readonly userDataProfileService: IUserDataProfileService,
 		private readonly configurationService: IWorkbenchConfigurationService,
-		private readonly isSessionsWindow: boolean,
 		private readonly experimentalSettingsService: IExperimentalSettingsService,
 		private readonly managedSettingsPresentationService: IManagedSettingsPresentationService,
 	) {
@@ -317,8 +311,7 @@ export class SettingsTreeSettingElement extends SettingsTreeElement {
 				break;
 		}
 
-		const inheritedValue = this.isSessionsWindow && targetSelector === 'workspaceValue' && !languageSelector ? inspected.value : inspected.defaultValue;
-		let displayValue = isConfigured ? inspected[targetSelector] : inheritedValue;
+		let displayValue = isConfigured ? inspected[targetSelector] : inspected.defaultValue;
 		const overriddenScopeList: string[] = [];
 		const overriddenDefaultsLanguageList: string[] = [];
 		if ((languageSelector || targetSelector !== 'workspaceValue') && typeof inspected.workspaceValue !== 'undefined') {
@@ -387,19 +380,9 @@ export class SettingsTreeSettingElement extends SettingsTreeElement {
 			this.defaultValue = inspected.defaultValue;
 		}
 
-		let hasAgentsWindowOverride = false;
-		if (this.isSessionsWindow) {
-			const property = Registry.as<IConfigurationRegistry>(Extensions.Configuration).getConfigurationProperties()[this.setting.key];
-			hasAgentsWindowOverride = !!property?.agentsWindow;
-			this.isAgentsWindowReadOnly = !!property?.agentsWindow?.readOnly;
-			if (this.isAgentsWindowReadOnly) {
-				isConfigured = false;
-			}
-		}
-
 		this.value = displayValue;
 		this.isConfigured = isConfigured;
-		if (isConfigured || this.setting.tags || this.tags || this.setting.restricted || this.hasPolicyValue || hasAgentsWindowOverride || this.hasExPAssignment) {
+		if (isConfigured || this.setting.tags || this.tags || this.setting.restricted || this.hasPolicyValue || this.hasExPAssignment) {
 			// Don't create an empty Set for all 1000 settings, only if needed
 			this.tags = new Set<string>();
 			if (isConfigured) {
@@ -418,10 +401,6 @@ export class SettingsTreeSettingElement extends SettingsTreeElement {
 
 			if (this.hasPolicyValue) {
 				this.tags.add(POLICY_SETTING_TAG);
-			}
-
-			if (hasAgentsWindowOverride) {
-				this.tags.add(AGENTS_WINDOW_SETTING_TAG);
 			}
 		}
 	}
@@ -608,7 +587,6 @@ export class SettingsTreeModel implements IDisposable {
 		@ILanguageService private readonly _languageService: ILanguageService,
 		@IUserDataProfileService private readonly _userDataProfileService: IUserDataProfileService,
 		@IProductService private readonly _productService: IProductService,
-		@IWorkbenchEnvironmentService private readonly _environmentService: IWorkbenchEnvironmentService,
 		@IExperimentalSettingsService private readonly _experimentalSettingsService: IExperimentalSettingsService,
 		@IManagedSettingsPresentationService private readonly _managedSettingsPresentationService: IManagedSettingsPresentationService,
 	) {
@@ -727,7 +705,6 @@ export class SettingsTreeModel implements IDisposable {
 			this._productService,
 			this._userDataProfileService,
 			this._configurationService,
-			this._environmentService.isSessionsWindow,
 			this._experimentalSettingsService,
 			this._managedSettingsPresentationService);
 
@@ -1052,7 +1029,7 @@ export class SearchResultModel extends SettingsTreeModel {
 		@IExperimentalSettingsService experimentalSettingsService: IExperimentalSettingsService,
 		@IManagedSettingsPresentationService managedSettingsPresentationService: IManagedSettingsPresentationService,
 	) {
-		super(viewState, isWorkspaceTrusted, configurationService, languageService, userDataProfileService, productService, environmentService, experimentalSettingsService, managedSettingsPresentationService);
+		super(viewState, isWorkspaceTrusted, configurationService, languageService, userDataProfileService, productService, experimentalSettingsService, managedSettingsPresentationService);
 		this.settingsOrderByTocIndex = settingsOrderByTocIndex;
 		this.update({ id: 'searchResultModel', label: '' });
 	}
@@ -1252,11 +1229,6 @@ export function parseQuery(query: string): IParsedQuery {
 
 	query = query.replace(`@${POLICY_SETTING_TAG}`, () => {
 		tags.push(POLICY_SETTING_TAG);
-		return '';
-	});
-
-	query = query.replace(`@${AGENTS_WINDOW_SETTING_TAG}`, () => {
-		tags.push(AGENTS_WINDOW_SETTING_TAG);
 		return '';
 	});
 

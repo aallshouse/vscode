@@ -618,23 +618,5 @@
 			"name": "vs/workbench/services/request",
 			"project": "vscode-workbench"
 		}
-	],
-	"sessions": [
-		{
-			"name": "vs/sessions/contrib/sideChat",
-			"project": "vscode-sessions"
-		},
-		{
-			"name": "vs/sessions/contrib/git",
-			"project": "vscode-sessions"
-		},
-		{
-			"name": "vs/sessions/contrib/logs",
-			"project": "vscode-sessions"
-		},
-		{
-			"name": "vs/sessions/contrib/welcome",
-			"project": "vscode-sessions"
-		}
 	]
 }

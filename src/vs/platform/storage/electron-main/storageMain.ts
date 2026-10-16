@@ -388,10 +388,6 @@ export class ApplicationSharedStorageMain extends BaseStorageMain {
 		return migratingStorage;
 	}
 
-	get applicationStorageItems(): Map<string, string> {
-		return this.applicationStorage.items;
-	}
-
 	private async prepareStorageFolder(): Promise<{ storageFilePath: string; wasCreated: boolean }> {
 		if (this.options.useInMemoryStorage) {
 			return { storageFilePath: SQLiteStorageDatabase.IN_MEMORY_PATH, wasCreated: true };

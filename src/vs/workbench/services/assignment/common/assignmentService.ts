@@ -476,7 +476,7 @@ export class WorkbenchAssignmentService extends Disposable implements IAssignmen
 			this.telemetryService.devDeviceId,
 			targetPopulation,
 			this.productService.date ?? '',
-			this.environmentService.isSessionsWindow ? WindowKind.Agents : WindowKind.Editor
+			WindowKind.Editor
 		);
 
 		const extensionsFilterProvider = this.instantiationService.createInstance(CopilotAssignmentFilterProvider);
@@ -496,7 +496,7 @@ export class WorkbenchAssignmentService extends Disposable implements IAssignmen
 				this.telemetryService.devDeviceId,
 				targetPopulation,
 				this.productService.date ?? '',
-				this.environmentService.isSessionsWindow ? WindowKind.Agents : WindowKind.Editor
+				WindowKind.Editor
 			);
 			const githubAssignmentsFilterProvider = this.instantiationService.createInstance(GitHubCoreAssignmentsFilterProvider);
 			this.tasSetupDisposables.add(githubAssignmentsFilterProvider);

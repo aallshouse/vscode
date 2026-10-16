@@ -756,7 +756,6 @@ class UserDataProfileExportState extends UserDataProfileImportExportState {
 			promptsHome: profile.promptsHome.with({ scheme: USER_DATA_PROFILE_EXPORT_SCHEME }),
 			extensionsResource: profile.extensionsResource,
 			cacheHome: profile.cacheHome,
-			agentPluginsHome: profile.agentPluginsHome,
 			useDefaultFlags: profile.useDefaultFlags,
 			isTransient: profile.isTransient
 		};

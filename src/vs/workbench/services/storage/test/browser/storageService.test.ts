@@ -48,7 +48,6 @@ async function createStorageService(): Promise<[DisposableStore, BrowserStorageS
 		promptsHome: joinPath(inMemoryExtraProfileRoot, 'promptsHome'),
 		extensionsResource: joinPath(inMemoryExtraProfileRoot, 'extensionsResource'),
 		cacheHome: joinPath(inMemoryExtraProfileRoot, 'cache'),
-		agentPluginsHome: joinPath(inMemoryExtraProfileRoot, 'agentPluginsHome'),
 	};
 
 	const storageService = disposables.add(new BrowserStorageService({ id: 'workspace-storage-test' }, disposables.add(new UserDataProfileService(inMemoryExtraProfile)), logService));

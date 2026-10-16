@@ -9,14 +9,13 @@ import { IFileService } from '../../files/common/files.js';
 import { refineServiceDecorator } from '../../instantiation/common/instantiation.js';
 import { ILogService } from '../../log/common/log.js';
 import { IUriIdentityService } from '../../uriIdentity/common/uriIdentity.js';
-import { IUserDataProfilesService, WillCreateProfileEvent, WillRemoveProfileEvent, IUserDataProfile, AGENTS_WINDOW_PROFILE_ID } from '../common/userDataProfile.js';
+import { IUserDataProfilesService, WillCreateProfileEvent, WillRemoveProfileEvent, IUserDataProfile } from '../common/userDataProfile.js';
 import { UserDataProfilesService } from '../node/userDataProfile.js';
 import { IAnyWorkspaceIdentifier, IEmptyWorkspaceIdentifier } from '../../workspace/common/workspace.js';
 import { IStateService } from '../../state/node/state.js';
 
 export const IUserDataProfilesMainService = refineServiceDecorator<IUserDataProfilesService, IUserDataProfilesMainService>(IUserDataProfilesService);
 export interface IUserDataProfilesMainService extends IUserDataProfilesService {
-	createAgentsWindowProfile(): Promise<IUserDataProfile>;
 	getProfileForWorkspace(workspaceIdentifier: IAnyWorkspaceIdentifier): IUserDataProfile | undefined;
 	unsetWorkspace(workspaceIdentifier: IAnyWorkspaceIdentifier, transient?: boolean): void;
 	getAssociatedEmptyWindows(): IEmptyWorkspaceIdentifier[];
@@ -34,15 +33,6 @@ export class UserDataProfilesMainService extends UserDataProfilesService impleme
 		@ILogService logService: ILogService,
 	) {
 		super(stateService, uriIdentityService, environmentService, fileService, logService);
-	}
-
-	async createAgentsWindowProfile(): Promise<IUserDataProfile> {
-		const existing = this.profiles.find(p => p.id === AGENTS_WINDOW_PROFILE_ID);
-		if (existing) {
-			return existing;
-		}
-
-		return this.createProfile(AGENTS_WINDOW_PROFILE_ID, 'Agents');
 	}
 
 	getAssociatedEmptyWindows(): IEmptyWorkspaceIdentifier[] {
