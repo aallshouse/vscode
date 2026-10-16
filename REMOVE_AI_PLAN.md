@@ -130,7 +130,7 @@ All AI `mainThread*`/`extHost*` files, their RPC identifiers in `extHost.protoco
 
 - `typecheck-diff.sh`: no new errors from the desktop, web, extension-host, main-process and server entry points; a full non-test `src` type-check and a chunked type-check of all unit tests also show no new errors against phase 1
 - `di_check.py`: no missing service registrations for the desktop, web and main entry points
-- node unit tests pass; build script tests pass except one environment-dependent Cloud Sandbox test that also fails on phase 1
+- node unit tests pass; browser unit tests (Chromium) show no failures beyond the ones phase 1 already has; build script tests pass except one environment-dependent Cloud Sandbox test that also fails on phase 1
 - eslint is clean on the changed files
 
 ---
@@ -147,7 +147,6 @@ These were left in place to keep phase 2 reviewable. None of them are reachable 
 - **Telemetry and misc.** AI edit telemetry, `genAi` OTel attributes, survey questions, `chatHeight` in the notebook cell layout, `TaskRunSource.ChatAgent`, chat menu contribution points in `menusExtensionPoint.ts`, and leftover `chat.*` command IDs and context keys.
 - **Rust CLI.** `cli/src/commands/agent*.rs` and the agent-host tunnel code.
 - **Config files.** Dead `eslint.config.js` import rules, `.eslint-plugin-local` agent-host rules, stylelint known variables and `build/lib/policies/policyData.jsonc` AI policies.
-- **Tests that exercise AI settings.** A few browser unit tests still assert on `chat.agent.sandbox.*` settings and Copilot account tiers; see the phase 2 PR description.
 
 ---
 
