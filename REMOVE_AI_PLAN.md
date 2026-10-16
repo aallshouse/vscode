@@ -1,11 +1,12 @@
 # Removing Copilot and AI features from this fork
 
-This fork removes GitHub Copilot and every built-in AI capability from VS Code. The work is split into two phases so each pull request stays reviewable and the fork can keep merging from upstream.
+This fork removes GitHub Copilot and every built-in AI capability from VS Code. The work is split into phases so each pull request stays reviewable and the fork can keep merging from upstream.
 
 | Phase | Branch | What it does | Status |
 |---|---|---|---|
-| 1 | `remove-ai/phase-1-unwire` | Delete the bundled Copilot extension and its build/CI wiring. Unregister every AI user-facing contribution. Disable the Agents window and agent host. Default AI off. | This PR |
-| 2 | `remove-ai/phase-2-delete` (next) | Delete the now-dead AI source trees, decouple core code from AI services, and remove the AI dependencies and build steps. | Planned below |
+| 1 | `remove-ai/phase-1-unwire` | Delete the bundled Copilot extension and its build/CI wiring. Unregister every AI user-facing contribution. Disable the Agents window and agent host. Default AI off. | Done |
+| 2 | `remove-ai/phase-2-delete` | Delete the now-dead AI source trees, decouple core code from AI services, and remove the AI dependencies and build steps. | Done (this PR) |
+| 3 | not started | Remove the remaining inert AI plumbing (`isSessionsWindow`, `defaultChatAgent`, Copilot account code, agent sandbox, Rust CLI agent commands). | Planned below |
 
 Decisions taken up front:
 
@@ -14,7 +15,7 @@ Decisions taken up front:
 
 ---
 
-## Phase 1 — unwire and strip (this PR)
+## Phase 1 — unwire and strip
 
 One commit per area, so the PR can be reviewed commit by commit.
 
@@ -93,73 +94,67 @@ The upstream unit and integration tests for the chat, inline-chat and MCP UI wil
 
 ---
 
-## Phase 2 — delete the dead source (next branch)
+## Phase 2 — delete the dead source (branch `remove-ai/phase-2-delete`)
 
-Phase 2 is easiest as three PRs, in this order. After each step, run `typecheck-diff.sh` and `di_check.py` (both in `scripts/remove-ai/`) against the previous step.
+Phase 2 was done as one branch, committed by area so it can be reviewed commit by commit.
 
-### 2a. Decouple core code from AI services
+### Extension API: inert namespaces instead of null main-thread services
 
-Remove each AI injection from core features. The goal is that no non-AI file imports from an AI directory. Current core → AI dependencies:
+The plan was to keep the ext-host AI code and back it with null `mainThread*` services. In practice it was simpler and smaller to delete the ext-host side too. `src/vs/workbench/api/common/extHostInertAiApi.ts` now implements `vscode.ai`, `vscode.chat`, `vscode.lm` and `vscode.speech` locally:
 
-| Area | AI services it injects | Change |
-|---|---|---|
-| Tasks (`abstractTaskService`, `taskService`) | `IChatService`, `IChatAgentService` | drop agent-aware task-problem handling |
-| Terminal (tabs view, decorations, initial hint, voice) | `ITerminalChatService`, `IChatWidgetService`, `IChatContextPickService`, `IChatAgentService`, `ISpeechService` | remove chat entries, hints and terminal dictation |
-| Notebooks (cell view models, editor hint, diagnostics, navigation) | `IInlineChatSessionService`, `IChatAgentService`, `InlineChatController` lookups | remove inline-chat hooks |
-| Editor (empty-editor hint, dictation, `inlineCompletionsModel`, `completionsEnablement`) | `IInlineChatSessionService`, `IChatSpeechToTextService`, `defaultChatAgent` | remove the AI hint and dictation; keep the generic inline-completions API |
-| SCM (`quickDiffModel`, `scmInput`, history chat context) | `IChatEditingService`, `IChatContextPickService`, `defaultChatAgent` | remove chat-editing quick diff and the commit-message sparkle |
-| Search, quick access, markers, debug | `IChatWidgetService`, `IQuickChatService`, `IChatContextPickService`, `IChatAgentService` | remove "ask in chat" and context-pick integrations |
-| Accessibility | `IChatCodeBlockContextProviderService`, `ISpeechService` | remove chat code-block navigation and speech settings |
-| Authentication | `IMcpRegistry`, `IMcpService` | remove the MCP account-management actions |
-| Extensions view and service, gallery | `ILanguageModelToolsService`, `IPluginInstallService`, `defaultChatAgent` | remove "Disable AI features" actions and Copilot special-cases |
-| Issue reporter, update title bar, canvases, browser view, testing | `ILanguageModelsService`, `IChatUtilityModelService`, `IChatService`, `IChatWidgetService`, `IChatPetService`, `IAgentNetworkFilterService`, `ILanguageModelToolsService` | remove AI features |
-| Welcome onboarding, Getting Started, help actions, watermark | `IChatMicrosoftSignInProbeService`, `chatSetupHidden` | remove Copilot steps and entries |
-| Accounts / default account (`defaultAccount.ts`), `chatEntitlementService` | `defaultChatAgent` | drop entitlement, token and MCP-registry fetching |
-| `IProductConfiguration` | — | make `defaultChatAgent` optional, then remove it from `product.json` |
+- proposed-API checks are kept, so extensions see the same errors for unenabled proposals
+- registrations return a no-op disposable, queries resolve to empty results, and events never fire
+- requests that need a model (`getModelProxy`, `computeEmbeddings`, `invokeTool`) reject with "AI features are not available in this build."
+- `window.createChatStatusItem`, `createAgentEditorComments` and `interactive.transferActiveChat` return inert objects
 
-**Extension API — keep it inert.** Replace the AI `mainThread*` customers with small null implementations in `src/vs/workbench/api/browser/`:
-- the language-model registry returns no models and rejects requests
-- chat participants and tools register into nothing
-- MCP providers are accepted and ignored
+All AI `mainThread*`/`extHost*` files, their RPC identifiers in `extHost.protocol.ts` and their converters in `extHostTypeConverters.ts` were removed.
 
-The ext-host side (`extHostLanguageModels`, `extHostChatAgents2`, `extHostLanguageModelTools`, `extHostMcp`, `extHostChatSessions`, `extHostChatContext`, `extHostCodeMapper`, `extHost.api.impl`) keeps its API shape. Affected files:
-- `browser/mainThread{LanguageModels,LanguageModelTools,ChatAgents2,ChatSessions,ChatContext,ChatCodeMapper,ChatDebug,ChatStatus,ChatInputNotification,ChatOutputRenderer,Mcp,Speech}.ts`
-- `mainThreadAuthentication.ts`, `mainThreadEditorTabs.ts`, `common/extHost.protocol.ts`, `common/extHostTypeConverters.ts`, `node/extHostMcpNode.ts`
+### Deleted
 
-### 2b. Delete the AI source trees
+- **workbench/contrib:** `chat`, `inlineChat`, `mcp`, `agentsVoice`, `speech`, `remoteCodingAgents`, `welcomeAgentSessions`, `welcomeOnboarding` (the Copilot sign-in overlay), `canvases`, `terminalContrib/{chat,chatAgentTools,voice}`, `codeEditor/browser/dictation`, the notebook chat/cell-diagnostics code, and the chat/AI pieces of search, debug, markers, SCM, testing, extensions and browser view
+- **workbench/services:** `agentHost`, `agentEditorComments`, `aiEmbeddingVector`, `aiRelatedInformation`, `aiSettingsSearch`, `chat`, `mcp`, `localTranscription`, the AI managed-settings update banner, and the agent Playwright service
+- **platform:** `agentHost`, `agentPlugins`, `chat`, `copilotConnectors`, `mcp`, `customizationMarketplace`, `localTranscription`, and the Playwright agent browser channel
+- **Agents window:** `src/vs/sessions`, `agentsWindow.ts`, the `openAgentsWindow` plumbing, and the tryout handoff
+- **CLI:** `code chat`, `code agent`, `--agents`, `--add-mcp`, `--agent-plugins-dir`, `--agents-user-data-dir`, `--agents-extensions-dir`, `--inspect-agenthost`, and the server's `agent-host-*` flags
+- **Core decoupling:** tasks, terminal, notebooks, editor hints, SCM, quick access, accessibility, preferences (AI settings search), issue reporter (AI title generation), update title bar, Getting Started (Copilot steps), assignment filters, policies and extension enablement no longer reference AI services
+- **Tests:** all tests for the above, the chat/sessions component fixtures, the Agents and chat smoke tests, and `test/integration/agentHost`
 
-Once 2a leaves them with no importers outside themselves:
+### Dependencies, build and CI
 
-- **workbench/contrib:** `chat`, `inlineChat`, `mcp`, `agentsVoice`, `speech`, `remoteCodingAgents`, `welcomeAgentSessions`, `terminalContrib/{chat,chatAgentTools,voice}`, and `codeEditor/browser/dictation`
-- **workbench/services:** `agentHost`, `agentEditorComments`, `aiEmbeddingVector`, `aiRelatedInformation`, `aiSettingsSearch`, `chat`, `mcp`
-  - Proposed APIs backed by the `ai*` services go too: decide per API whether to keep a null provider.
-- **platform:** `agentHost`, `agentPlugins`, `chat`, `copilotConnectors`, `mcp`, `policy/common/copilotManagedSettings`
-- **The Agents window:** `src/vs/sessions` (all of it), the `agentsWindow.ts` helpers, the `openAgentsWindow` plumbing (native host, launch, CLI `--agents`, URL handlers) and `isSessionsWindow`
-- **Tests** for all of the above, plus `test/integration/agentHost`
-- **Proposed API definitions:** keep the `vscode.proposed.*` files for the inert APIs; delete the rest
+- Removed from `package.json`/`remote/package.json`: `@github/copilot-sdk`, `@vscode/copilot-api`, `@anthropic-ai/sdk`, `@anthropic-ai/claude-agent-sdk`, `@openai/codex`, `foundry-local-sdk`, `@devcontainers/cli`, `@vscode/sandbox-runtime`, `libsodium-wrappers`, `@hpke/core`, `ssh2`, `copilotRuntimeVersion` and the `codex:*`/`agent-host:*` scripts. `playwright-core` moved to `devDependencies` (only the smoke-test automation uses it now). Lockfiles refreshed.
+- Removed `build/lib/copilot.ts` (the ripgrep filter moved to `build/lib/ripgrep.ts`), `build/agent-sdk`, `build/agentHost`, `build/codex`, `build/dictation-runtime`, the dev-tunnels web bundle, the Agents bundle entries and resources, the Copilot/Foundry packaging and universal-app handling, and the Copilot `.moduleignore` entries.
+- CI: removed the SDK canary, `mixin-vscode-capi`, agent-SDK and dictation-runtime producers, the packaged agent-host smoke test, the native-optional-deps check, the Codex protocol check, agent-host E2E detection, the Claude musl workaround, the Agents PAC-proxy and WSL Dev Container smoke lanes, and the Copilot test-checkpoint IDs.
+- AI contributor docs for deleted features (agent host, sessions, chat, chat perf) were removed from `.github/`.
 
-### 2c. Dependencies, build and CI
+### Verification done for phase 2
 
-- **`package.json` and `remote/package.json`:** remove `@github/copilot-sdk`, `@anthropic-ai/sdk`, `@anthropic-ai/claude-agent-sdk`, `@openai/codex`, `@vscode/copilot-api`, `copilotRuntimeVersion`, and the `codex:*` and `agent-host:*` scripts. Refresh the lockfiles.
-- **build:**
-  - drop the Agents entry points from `build/next/index.ts`, the sessions files from `gulpfile.vscode.ts`, and `build/vite/mobile-multi-diff*`
-  - remove `build/lib/copilot.ts` and the `copilotVersions` product stamping
-  - remove `build/agentHost/`, `build/codex/`, `build/agent-sdk/`, and the Copilot handling in `build/darwin/{create-universal-app,verify-macho}.ts`
-  - clean up the Copilot entries in `build/.moduleignore*`
-- **CI:** remove the SDK canary pipeline (`apply-sdk-canary*`), `mixin-vscode-capi.yml`, the Claude SDK musl workaround in `pr-linux-test.yml`, and the Copilot test-checkpoint IDs.
-- **Optional:** the AI-agent contributor docs (`AGENTS.md`, `.github/copilot-instructions.md`, `.github/skills/`). These only guide AI coding agents working *on* the repo and don't ship in the product. Keep or remove to taste.
+- `typecheck-diff.sh`: no new errors from the desktop, web, extension-host, main-process and server entry points; a full non-test `src` type-check and a chunked type-check of all unit tests also show no new errors against phase 1
+- `di_check.py`: no missing service registrations for the desktop, web and main entry points
+- node unit tests pass; build script tests pass except one environment-dependent Cloud Sandbox test that also fails on phase 1
+- eslint is clean on the changed files
 
-### Phase 2 risks
+---
 
-- **Merge conflicts with upstream.** These grow with each step. 2a is the most conflict-prone because it touches many core files; landing it in small per-area commits keeps rebases manageable.
-- **Missed runtime-only dependencies.** Command IDs invoked by string (`executeCommand('workbench.action.chat.*')`) and context keys don't show up in the type check or the DI check. After 2b, grep for `chat.`, `copilot`, `mcp.` and `inlineChat.` command IDs and context keys in the remaining code, then smoke-test as in phase 1.
+## Phase 3 — remaining AI plumbing (not done yet)
+
+These were left in place to keep phase 2 reviewable. None of them are reachable as AI features in the UI.
+
+- **`isSessionsWindow` and the Agents profile.** About 50 files still check `isSessionsWindow`, which is always false. Remove the flag, the `agentsWindow` configuration-schema overrides, `AGENTS_WINDOW_PROFILE_ID`, `agentPluginsHome`, `resources/win32/sessions.ico` and `IsSessionsWindowContext`.
+- **`product.defaultChatAgent`.** Still read by extension enablement, the gallery, accounts and policies. Make it optional, remove the readers, then drop it from `product.json`.
+- **Copilot account plumbing.** `copilotManagedSettings`, the account policy gate, `defaultAccount` Copilot token/entitlement fields, `copilotVersions`, `agentSdks` and `dictationRuntime` in `IProductConfiguration`.
+- **Agent sandbox and network filter.** `platform/sandbox` and `platform/networkFilter` still exist; the browser view registers the network filter, which is disabled because its settings are no longer registered.
+- **MCP leftovers.** MCP account-access services, the MCP profile resource and MCP settings sync.
+- **Telemetry and misc.** AI edit telemetry, `genAi` OTel attributes, survey questions, `chatHeight` in the notebook cell layout, `TaskRunSource.ChatAgent`, chat menu contribution points in `menusExtensionPoint.ts`, and leftover `chat.*` command IDs and context keys.
+- **Rust CLI.** `cli/src/commands/agent*.rs` and the agent-host tunnel code.
+- **Config files.** Dead `eslint.config.js` import rules, `.eslint-plugin-local` agent-host rules, stylelint known variables and `build/lib/policies/policyData.jsonc` AI policies.
+- **Tests that exercise AI settings.** A few browser unit tests still assert on `chat.agent.sandbox.*` settings and Copilot account tiers; see the phase 2 PR description.
 
 ---
 
 ## Verification tools (`scripts/remove-ai/`)
 
-- **`typecheck-diff.sh [ref]`** — type-checks everything reachable from the desktop, web, extension-host, main-process, server and Agents entry points with native TypeScript 7 (fits in about 7 GB). Prints only errors absent from `ref`.
+- **`typecheck-diff.sh [ref]`** — type-checks everything reachable from the desktop, web, extension-host, main-process and server entry points with native TypeScript 7 (fits in about 7 GB). Prints only errors absent from `ref`.
 - **`di_check.py <repo> <ref> <entry.ts>…`** — compares the import closure of each entry point with `ref`. Reports any still-loaded file that injects (`@IFoo` or `accessor.get(IFoo)`) a service whose `registerSingleton` is no longer loaded.
 - **`prune_imports.py <files>`** — removes the unused imports that `tsc` reports after unregistering contributions. Pipe `tsc` output into it.
 
-Delete this file and `scripts/remove-ai/` once phase 2 is merged.
+Delete this file and `scripts/remove-ai/` once phase 3 is merged.
