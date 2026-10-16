@@ -9,7 +9,7 @@ import { LineEdit } from './core/edits/lineEdit.js';
 import { BaseStringEdit } from './core/edits/stringEdit.js';
 import { StringText } from './core/text/abstractText.js';
 import { TextLength } from './core/text/textLength.js';
-import { ProviderId, VersionedExtensionId } from './languages.js';
+import { ProviderId } from './languages.js';
 
 const privateSymbol = Symbol('TextModelEditSource');
 
@@ -71,17 +71,6 @@ function createEditSource<T extends Record<string, any>>(metadata: T): TextModel
 	return new TextModelEditSource(metadata as any, privateSymbol) as any;
 }
 
-export function isAiEdit(source: TextModelEditSource): boolean {
-	switch (source.metadata.source) {
-		case 'inlineCompletionAccept':
-		case 'inlineCompletionPartialAccept':
-		case 'inlineChat.applyEdits':
-		case 'Chat.applyEdits':
-			return true;
-	}
-	return false;
-}
-
 export function isUserEdit(source: TextModelEditSource): boolean {
 	switch (source.metadata.source) {
 		case 'cursor':
@@ -99,70 +88,6 @@ export const EditSources = {
 	},
 
 	rename: (oldName: string | undefined, newName: string) => createEditSource({ source: 'rename', $$$oldName: oldName, $$$newName: newName } as const),
-
-	chatApplyEdits(data: {
-		modelId: string | undefined;
-		autoTier?: string;
-		fusionModel?: string;
-		sessionId: string | undefined;
-		requestId: string | undefined;
-		languageId: string;
-		mode: string | undefined;
-		extensionId: VersionedExtensionId | undefined;
-		codeBlockSuggestionId: EditSuggestionId | undefined;
-		origin?: 'agentHost';
-		harness?: string;
-		agentSessionId?: string;
-		chatSessionId?: string;
-	}) {
-		return createEditSource({
-			source: 'Chat.applyEdits',
-			$modelId: avoidPathRedaction(data.modelId),
-			$autoTier: data.autoTier,
-			$fusionModel: data.fusionModel,
-			$extensionId: data.extensionId?.extensionId,
-			$extensionVersion: data.extensionId?.version,
-			$harness: data.harness,
-			$origin: data.origin,
-			$$languageId: data.languageId,
-			$$sessionId: data.sessionId,
-			...(data.agentSessionId !== undefined ? { $$agentSessionId: data.agentSessionId } : {}),
-			...(data.chatSessionId !== undefined ? { $$chatSessionId: data.chatSessionId } : {}),
-			$$requestId: data.requestId,
-			$$mode: data.mode,
-			$$codeBlockSuggestionId: data.codeBlockSuggestionId,
-		} as const);
-	},
-
-	agentHostChatApplyEdits(data: {
-		modelId: string | undefined;
-		autoTier?: string;
-		fusionModel?: string;
-		sessionId: string;
-		agentSessionId?: string;
-		chatSessionId?: string;
-		requestId: string;
-		harness: string;
-	}) {
-		return EditSources.chatApplyEdits({
-			modelId: data.modelId,
-			autoTier: data.autoTier,
-			fusionModel: data.fusionModel,
-			sessionId: data.sessionId,
-			agentSessionId: data.agentSessionId,
-			chatSessionId: data.chatSessionId,
-			requestId: data.requestId,
-			languageId: '',
-			mode: undefined,
-			extensionId: undefined,
-			codeBlockSuggestionId: undefined,
-			origin: 'agentHost',
-			harness: data.harness,
-		});
-	},
-
-	chatUndoEdits: () => createEditSource({ source: 'Chat.undoEdits' } as const),
-	chatReset: () => createEditSource({ source: 'Chat.reset' } as const),
 
 	inlineCompletionAccept(data: { nes: boolean; requestUuid: string; languageId: string; providerId?: ProviderId; correlationId: string | undefined }) {
 		return createEditSource({
@@ -183,19 +108,6 @@ export const EditSources = {
 			...toProperties(data.providerId),
 			$$correlationId: data.correlationId,
 			$$requestUuid: data.requestUuid,
-			$$languageId: data.languageId,
-		} as const);
-	},
-
-	inlineChatApplyEdit(data: { modelId: string | undefined; autoTier?: string; requestId: string | undefined; sessionId: string | undefined; languageId: string; extensionId: VersionedExtensionId | undefined }) {
-		return createEditSource({
-			source: 'inlineChat.applyEdits',
-			$modelId: avoidPathRedaction(data.modelId),
-			$autoTier: data.autoTier,
-			$extensionId: data.extensionId?.extensionId,
-			$extensionVersion: data.extensionId?.version,
-			$$sessionId: data.sessionId,
-			$$requestId: data.requestId,
 			$$languageId: data.languageId,
 		} as const);
 	},
@@ -233,15 +145,6 @@ function toProperties(version: ProviderId | undefined) {
 type Values<T> = T[keyof T];
 export type ITextModelEditSourceMetadata = Values<{ [TKey in keyof typeof EditSources]: ReturnType<typeof EditSources[TKey]>['metadataT'] }>;
 type ITextModelEditSourceMetadataKeys = Values<{ [TKey in keyof typeof EditSources]: keyof ReturnType<typeof EditSources[TKey]>['metadataT'] }>;
-
-
-function avoidPathRedaction(str: string | undefined): string | undefined {
-	if (str === undefined) {
-		return undefined;
-	}
-	// To avoid false-positive file path redaction.
-	return str.replaceAll('/', '|');
-}
 
 
 export class EditDeltaInfo {
@@ -290,9 +193,6 @@ export interface EditSuggestionId {
 }
 
 export namespace EditSuggestionId {
-	/**
-	 * Use AiEditTelemetryServiceImpl to create a new id!
-	*/
 	export function newId(genPrefixedUuid?: (ns: string) => string): EditSuggestionId {
 		const id = genPrefixedUuid ? genPrefixedUuid('sgt') : prefixedUuid('sgt');
 		return toEditIdentity(id);

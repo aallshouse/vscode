@@ -44,17 +44,6 @@ export class MarkupCellViewModel extends BaseCellViewModel implements ICellViewM
 		this._updateTotalHeight(this._computeTotalHeight());
 	}
 
-	private _chatHeight = 0;
-
-	set chatHeight(newHeight: number) {
-		this._chatHeight = newHeight;
-		this._updateTotalHeight(this._computeTotalHeight());
-	}
-
-	get chatHeight() {
-		return this._chatHeight;
-	}
-
 	private _editorHeight = 0;
 	private _statusBarHeight = 0;
 	set editorHeight(newHeight: number) {
@@ -126,7 +115,6 @@ export class MarkupCellViewModel extends BaseCellViewModel implements ICellViewM
 		const { bottomToolbarGap } = this.viewContext.notebookOptions.computeBottomToolbarDimensions(this.viewType);
 		const layoutConfiguration = this.viewContext.notebookOptions.getLayoutConfiguration();
 		this._layoutInfo = {
-			chatHeight: 0,
 			editorHeight: 0,
 			previewHeight: 0,
 			fontInfo: initialNotebookLayoutInfo?.fontInfo || null,
@@ -234,7 +222,6 @@ export class MarkupCellViewModel extends BaseCellViewModel implements ICellViewM
 		if (this.getEditState() === CellEditState.Editing) {
 			commentOffset = notebookLayoutConfiguration.editorToolbarHeight
 				+ notebookLayoutConfiguration.cellTopMargin // CELL_TOP_MARGIN
-				+ this._chatHeight
 				+ this._editorHeight
 				+ this._statusBarHeight;
 		} else {
@@ -247,7 +234,6 @@ export class MarkupCellViewModel extends BaseCellViewModel implements ICellViewM
 				this.viewContext.notebookOptions
 					.computeMarkdownCellEditorWidth(state.outerWidth) :
 				this._layoutInfo.editorWidth,
-			chatHeight: this._chatHeight,
 			editorHeight: this._editorHeight,
 			statusBarHeight: this._statusBarHeight,
 			previewHeight: this._previewHeight,
@@ -276,7 +262,6 @@ export class MarkupCellViewModel extends BaseCellViewModel implements ICellViewM
 			this._layoutInfo = {
 				...this.layoutInfo,
 				totalHeight: totalHeight,
-				chatHeight: this._chatHeight,
 				editorHeight: this._editorHeight,
 				statusBarHeight: this._statusBarHeight,
 				layoutState: CellLayoutState.FromCache,
