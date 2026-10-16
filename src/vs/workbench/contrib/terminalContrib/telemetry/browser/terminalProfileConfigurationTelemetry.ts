@@ -7,12 +7,7 @@ import { Disposable } from '../../../../../base/common/lifecycle.js';
 import { IConfigurationService, ConfigurationTargetToString } from '../../../../../platform/configuration/common/configuration.js';
 import { ITelemetryService } from '../../../../../platform/telemetry/common/telemetry.js';
 import { TerminalSettingId } from '../../../../../platform/terminal/common/terminal.js';
-import { TerminalChatAgentToolsSettingId } from '../../chatAgentTools/common/terminalChatAgentToolsConfiguration.js';
-
 const terminalProfileSettings = [
-	{ settingId: TerminalChatAgentToolsSettingId.TerminalProfileLinux, profileType: 'chat', os: 'linux' },
-	{ settingId: TerminalChatAgentToolsSettingId.TerminalProfileMacOs, profileType: 'chat', os: 'osx' },
-	{ settingId: TerminalChatAgentToolsSettingId.TerminalProfileWindows, profileType: 'chat', os: 'windows' },
 	{ settingId: TerminalSettingId.AutomationProfileLinux, profileType: 'automation', os: 'linux' },
 	{ settingId: TerminalSettingId.AutomationProfileMacOs, profileType: 'automation', os: 'osx' },
 	{ settingId: TerminalSettingId.AutomationProfileWindows, profileType: 'automation', os: 'windows' },
@@ -62,7 +57,7 @@ export class TerminalProfileConfigurationTelemetry extends Disposable {
 			owner: 'anthonykim1';
 			comment: 'Tracks terminal profile settings that already have a configured value without collecting profile names, paths, arguments, environment variables, or other profile contents.';
 			settingId: { classification: 'SystemMetaData'; purpose: 'FeatureInsight'; comment: 'The terminal profile setting that has a configured value.' };
-			profileType: { classification: 'SystemMetaData'; purpose: 'FeatureInsight'; comment: 'Whether the configured setting controls chat, automation, or default terminals.' };
+			profileType: { classification: 'SystemMetaData'; purpose: 'FeatureInsight'; comment: 'Whether the configured setting controls automation or default terminals.' };
 			os: { classification: 'SystemMetaData'; purpose: 'FeatureInsight'; comment: 'The operating system targeted by the configured setting.' };
 			configured: { classification: 'SystemMetaData'; purpose: 'FeatureInsight'; comment: 'Whether the setting has a configured value.' };
 		};
@@ -91,7 +86,7 @@ export class TerminalProfileConfigurationTelemetry extends Disposable {
 			owner: 'anthonykim1';
 			comment: 'Tracks changes to terminal profile settings without collecting profile names, paths, arguments, environment variables, or other profile contents.';
 			settingId: { classification: 'SystemMetaData'; purpose: 'FeatureInsight'; comment: 'The terminal profile setting that changed.' };
-			profileType: { classification: 'SystemMetaData'; purpose: 'FeatureInsight'; comment: 'Whether the changed setting controls chat, automation, or default terminals.' };
+			profileType: { classification: 'SystemMetaData'; purpose: 'FeatureInsight'; comment: 'Whether the changed setting controls automation or default terminals.' };
 			os: { classification: 'SystemMetaData'; purpose: 'FeatureInsight'; comment: 'The operating system targeted by the changed setting.' };
 			configured: { classification: 'SystemMetaData'; purpose: 'FeatureInsight'; comment: 'Whether the setting resolves to a configured profile after the change.' };
 			changeType: { classification: 'SystemMetaData'; purpose: 'FeatureInsight'; comment: 'Whether the effective profile setting was added, changed, or removed.' };
