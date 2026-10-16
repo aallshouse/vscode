@@ -10,21 +10,16 @@ import { Emitter, Event } from '../../../../../base/common/event.js';
 import { Disposable } from '../../../../../base/common/lifecycle.js';
 import { ManagedSettingsData, PolicyCategory } from '../../../../../base/common/policy.js';
 import { ensureNoDisposablesAreLeakedInTestSuite } from '../../../../../base/test/common/utils.js';
-import { AgentHostEnablementService } from '../../../../../platform/agentHost/browser/agentHostEnablementService.js';
 import { Extensions, IConfigurationNode, IConfigurationRegistry } from '../../../../../platform/configuration/common/configurationRegistry.js';
 import { DefaultConfiguration, PolicyConfiguration } from '../../../../../platform/configuration/common/configurations.js';
 import { TestConfigurationService } from '../../../../../platform/configuration/test/common/testConfigurationService.js';
 import { IDefaultAccountProvider, IDefaultAccountService, MANAGED_SETTINGS_FRESHNESS_NOT_REQUIRED } from '../../../../../platform/defaultAccount/common/defaultAccount.js';
 import { NullLogService } from '../../../../../platform/log/common/log.js';
-import { MockContextKeyService } from '../../../../../platform/keybinding/test/common/mockKeybindingService.js';
 import { COPILOT_AUTO_TIER_KEY, COPILOT_DISABLE_BYPASS_PERMISSIONS_MODE_KEY, COPILOT_ENABLED_PLUGINS_KEY, COPILOT_OTEL_CAPTURE_IDENTITY_KEY, COPILOT_PERMISSION_RULES_KEYS, COPILOT_SANDBOX_ENABLED_KEY, COPILOT_TEMPORARY_DEFAULT_TO_LOCAL_HARNESS_KEY, COPILOT_TEMPORARY_ALLOW_LOCAL_HARNESS_KEY, hasManagedPermissions, INativeManagedSettingsService, IFileManagedSettingsService, RawManagedSettingsData, managedSettingsDisabledValue, managedSettingValue, normalizeManagedSettings, requiresCopilotAgentHost, TemporaryDefaultToLocalHarnessSettingId, thirdPartyAgentEnabledValue } from '../../../../../platform/policy/common/copilotManagedSettings.js';
 import { IManagedSettingsFreshness, ManagedSettingsFreshnessFailure, ManagedSettingsFreshnessState } from '../../../../../platform/policy/common/managedSettingsFreshness.js';
 import { AbstractPolicyService, IPolicyService, PolicyDefinition, PolicyValue, PolicyValueSource } from '../../../../../platform/policy/common/policy.js';
 import { Registry } from '../../../../../platform/registry/common/platform.js';
-import { TestContextService, TestProductService, TestStorageService } from '../../../../test/common/workbenchTestServices.js';
-import { getComputedDefaultSessionType, getDefaultNewChatSessionType } from '../../../../contrib/chat/common/constants.js';
-import { localChatSessionType, SessionType } from '../../../../contrib/chat/common/chatSessionsService.js';
-import { storeUserSelectedSessionType } from '../../../../contrib/chat/common/chatSessionTypePreference.js';
+import { TestProductService } from '../../../../test/common/workbenchTestServices.js';
 import { DefaultAccountService } from '../../../accounts/browser/defaultAccount.js';
 import { adaptManagedSettings } from '../../../accounts/browser/managedSettings.js';
 import { AccountPolicyGateState, AccountPolicyGateUnsatisfiedReason, AccountPolicyService, APPROVED_ACCOUNT_ORGANIZATIONS_POLICY_NAME, IAccountPolicyGateInfo, whenAccountPolicySettled } from '../../common/accountPolicyService.js';
@@ -501,59 +496,6 @@ suite('AccountPolicyService', () => {
 		await cleared;
 		assert.deepStrictEqual({ initial, unresolved, nextAccount, removed: policyService.getManagedSettingValue(COPILOT_AUTO_TIER_KEY) }, {
 			initial: 'intelligence', unresolved: undefined, nextAccount: 'efficiency', removed: undefined,
-		});
-	});
-
-	test('managed sandbox policy refresh selects Agent Host Copilot despite device false and remembered local', async () => {
-		const key = COPILOT_SANDBOX_ENABLED_KEY;
-		const nativeManagedSettingsService = disposables.add(new FakeNativeManagedSettingsService({ [key]: false }));
-		const policyDataChanged = disposables.add(new Emitter<IPolicyData | null>());
-		const provider = new class extends DefaultAccountProvider {
-			override readonly onDidChangePolicyData = policyDataChanged.event;
-			override policyData: IPolicyData = { managedSettings: { [key]: false } };
-		}(BASE_DEFAULT_ACCOUNT);
-		defaultAccountService.setDefaultAccountProvider(provider);
-		await defaultAccountService.refresh();
-
-		policyService = disposables.add(new AccountPolicyService(logService, defaultAccountService, undefined, nativeManagedSettingsService));
-		await policyService.updatePolicyDefinitions({ SandboxTest: { type: 'boolean' } });
-		const configurationService = new TestConfigurationService();
-		disposables.add(configurationService.onDidChangeConfigurationEmitter);
-		const contextKeyService = disposables.add(new MockContextKeyService());
-		const enablementService = disposables.add(new AgentHostEnablementService(true, configurationService, contextKeyService, policyService));
-		const storageService = disposables.add(new TestStorageService());
-		storeUserSelectedSessionType(storageService, localChatSessionType);
-		const workspace = new TestContextService().getWorkspace();
-		const chatSessionsService = {
-			getChatSessionContribution: () => undefined,
-			getAllChatSessionContributions: () => [],
-		};
-		const snapshot = () => {
-			const enabled = enablementService.enabled.get();
-			const managedSandboxEnforced = enablementService.managedSandboxEnforced.get();
-			return {
-				managedSandboxEnforced,
-				computed: getComputedDefaultSessionType(configurationService, chatSessionsService, workspace, enabled, managedSandboxEnforced),
-				remembered: getDefaultNewChatSessionType(configurationService, chatSessionsService, storageService, workspace, enabled, { currentSessionType: localChatSessionType }, managedSandboxEnforced),
-			};
-		};
-
-		const before = snapshot();
-		const enforced = Event.toPromise(policyService.onDidChangeManagedSettings);
-		provider.policyData = { managedSettings: { [key]: true } };
-		policyDataChanged.fire(provider.policyData);
-		await enforced;
-		const after = snapshot();
-
-		const removed = Event.toPromise(policyService.onDidChangeManagedSettings);
-		provider.policyData = {};
-		policyDataChanged.fire(provider.policyData);
-		await removed;
-
-		assert.deepStrictEqual({ before, after, removed: snapshot() }, {
-			before: { managedSandboxEnforced: false, computed: localChatSessionType, remembered: localChatSessionType },
-			after: { managedSandboxEnforced: true, computed: SessionType.AgentHostCopilot, remembered: SessionType.AgentHostCopilot },
-			removed: { managedSandboxEnforced: false, computed: localChatSessionType, remembered: localChatSessionType },
 		});
 	});
 

@@ -25,10 +25,15 @@ import { IWorkbenchEnvironmentService } from '../../../environment/common/enviro
 import { IUriIdentityService } from '../../../../../platform/uriIdentity/common/uriIdentity.js';
 import { UriIdentityService } from '../../../../../platform/uriIdentity/common/uriIdentityService.js';
 import { WorkspaceTrustEnablementService, WorkspaceTrustManagementService, WorkspaceTrustRequestService, WORKSPACE_TRUST_STORAGE_KEY } from '../../common/workspaceTrust.js';
-import { AGENT_HOST_SCHEME, toAgentHostUri } from '../../../../../platform/agentHost/common/agentHostUri.js';
 import { TestContextService, TestStorageService, TestWorkspaceTrustEnablementService } from '../../../../test/common/workbenchTestServices.js';
 import { ensureNoDisposablesAreLeakedInTestSuite } from '../../../../../base/test/common/utils.js';
 import { Mutable } from '../../../../../base/common/types.js';
+
+const TRUSTED_AUTHORITY_SCHEME = Schemas.vscodeRemote;
+
+function toAuthorityUri(uri: URI, authority: string): URI {
+	return URI.from({ scheme: TRUSTED_AUTHORITY_SCHEME, authority, path: uri.path });
+}
 
 suite('Workspace Trust', () => {
 	const store = ensureNoDisposablesAreLeakedInTestSuite();
@@ -170,47 +175,20 @@ suite('Workspace Trust', () => {
 			});
 		});
 
-		test('agent host folder is not auto-trusted as a virtual resource', async () => {
-			await configurationService.setUserConfiguration('security', getUserSettings(true, true));
-			workspaceService.setWorkspace(new Workspace('empty-workspace'));
-			const testObject = await initializeTestObject();
-
-			// A regular virtual resource (e.g. github1s) is auto-trusted...
-			const virtualUri = URI.parse('vscode-test-virtual://authority/folder');
-			assert.strictEqual(true, (await testObject.getUriTrustInfo(virtualUri)).trusted);
-
-			// ...but an agent host folder is not, even though it is a virtual scheme.
-			const agentHostUri = URI.from({ scheme: AGENT_HOST_SCHEME, authority: 'my-server', path: '/Users/me/code', query: '_ah=meta' });
-			assert.strictEqual(false, (await testObject.getUriTrustInfo(agentHostUri)).trusted);
-		});
-
-		test('agent host folder trust persists and ignores the _ah query', async () => {
-			await configurationService.setUserConfiguration('security', getUserSettings(true, true));
-			workspaceService.setWorkspace(new Workspace('empty-workspace'));
-			const testObject = await initializeTestObject();
-
-			const agentHostUri = URI.from({ scheme: AGENT_HOST_SCHEME, authority: 'my-server', path: '/Users/me/code', query: '_ah=meta' });
-			await testObject.setUrisTrust([agentHostUri], true);
-
-			// The same folder with a different _ah payload resolves to the same trust entry.
-			const sameFolderDifferentMeta = URI.from({ scheme: AGENT_HOST_SCHEME, authority: 'my-server', path: '/Users/me/code', query: '_ah=other' });
-			assert.strictEqual(true, (await testObject.getUriTrustInfo(sameFolderDifferentMeta)).trusted);
-		});
-
 		for (const authority of ['managed-host', 'host_with_underscore', 'Host42']) {
 			test(`registered authorities are automatically trusted without persistence (${authority})`, async () => {
 				await configurationService.setUserConfiguration('security', getUserSettings(true, true));
-				const folder = toAgentHostUri(URI.file('/workspaces/repo'), authority);
+				const folder = toAuthorityUri(URI.file('/workspaces/repo'), authority);
 				workspaceService.setWorkspace(new Workspace('managed-workspace', [toWorkspaceFolder(folder)]));
 				const testObject = store.add(instantiationService.createInstance(WorkspaceTrustManagementService));
-				store.add(testObject.registerTrustedAuthority(AGENT_HOST_SCHEME, authority));
+				store.add(testObject.registerTrustedAuthority(TRUSTED_AUTHORITY_SCHEME, authority));
 				await testObject.workspaceTrustInitialized;
 				instantiationService.stub(IWorkspaceTrustManagementService, testObject);
 				const requests = store.add(instantiationService.createInstance(WorkspaceTrustRequestService));
 
 				await testObject.setUrisTrust([folder], true);
 				await testObject.setUrisTrust([folder], false);
-				const otherRepository = toAgentHostUri(URI.file('/workspaces/other-repo'), authority);
+				const otherRepository = toAuthorityUri(URI.file('/workspaces/other-repo'), authority);
 				assert.deepStrictEqual({
 					trusted: testObject.isWorkspaceTrusted(),
 					forced: testObject.isWorkspaceTrustForced(),
@@ -237,14 +215,14 @@ suite('Workspace Trust', () => {
 
 		test('registered authority trust does not extend to other schemes or authorities', async () => {
 			await configurationService.setUserConfiguration('security', getUserSettings(true, true));
-			const managed = toAgentHostUri(URI.file('/workspaces/repo'), 'managed-host');
+			const managed = toAuthorityUri(URI.file('/workspaces/repo'), 'managed-host');
 			const local = URI.file('/workspaces/repo');
 			workspaceService.setWorkspace(new Workspace('mixed-workspace', [toWorkspaceFolder(managed), toWorkspaceFolder(local)]));
 			const testObject = store.add(instantiationService.createInstance(WorkspaceTrustManagementService));
-			store.add(testObject.registerTrustedAuthority(AGENT_HOST_SCHEME, managed.authority));
+			store.add(testObject.registerTrustedAuthority(TRUSTED_AUTHORITY_SCHEME, managed.authority));
 			await testObject.workspaceTrustInitialized;
 			const authorities = ['managed-host-other', 'managed', 'unmanaged-host', 'local'];
-			const otherHosts = await Promise.all(authorities.map(authority => testObject.getUriTrustInfo(toAgentHostUri(local, authority))));
+			const otherHosts = await Promise.all(authorities.map(authority => testObject.getUriTrustInfo(toAuthorityUri(local, authority))));
 			const wrongScheme = await testObject.getUriTrustInfo(managed.with({ scheme: 'file' }));
 
 			assert.deepStrictEqual({
@@ -266,15 +244,15 @@ suite('Workspace Trust', () => {
 
 		test('authority registration updates workspace trust and lasts until the last registration is disposed', async () => {
 			await configurationService.setUserConfiguration('security', getUserSettings(true, true));
-			const folder = toAgentHostUri(URI.file('/workspaces/repo'), 'managed-host');
+			const folder = toAuthorityUri(URI.file('/workspaces/repo'), 'managed-host');
 			workspaceService.setWorkspace(new Workspace('managed-workspace', [toWorkspaceFolder(folder)]));
 			const testObject = await initializeTestObject();
 			const changes: boolean[] = [];
 			store.add(testObject.onDidChangeTrust(trusted => changes.push(trusted)));
 			const trusted = Event.toPromise(testObject.onDidChangeTrust);
-			const first = store.add(testObject.registerTrustedAuthority(AGENT_HOST_SCHEME, folder.authority));
+			const first = store.add(testObject.registerTrustedAuthority(TRUSTED_AUTHORITY_SCHEME, folder.authority));
 			await trusted;
-			const second = store.add(testObject.registerTrustedAuthority(AGENT_HOST_SCHEME, folder.authority.toUpperCase()));
+			const second = store.add(testObject.registerTrustedAuthority(TRUSTED_AUTHORITY_SCHEME, folder.authority.toUpperCase()));
 			first.dispose();
 			const stillTrusted = (await testObject.getUriTrustInfo(folder)).trusted;
 			const untrusted = Event.toPromise(testObject.onDidChangeTrust);

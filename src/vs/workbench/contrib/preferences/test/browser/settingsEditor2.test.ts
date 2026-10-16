@@ -182,7 +182,7 @@ suite('SettingsEditor2', () => {
 			editor['searchResultModel'] = editor['createFilterModel']();
 			const searchModel = editor['searchResultModel']!;
 			tocModel.currentSearchModel = searchModel;
-			editor['renderResultCountMessages'](false);
+			editor['renderResultCountMessages']();
 			editor['refreshTree']();
 			const rebuild = sinon.spy(searchModel, 'updateChildren');
 			const read = () => ({

@@ -10,7 +10,6 @@ import { Registry } from '../../../../../platform/registry/common/platform.js';
 import { IEnvironmentService } from '../../../../../platform/environment/common/environment.js';
 import { allSettings, IConfigurationDefaults, IConfigurationNode, IConfigurationRegistry, Extensions as ConfigurationExtensions, ConfigurationScope, keyFromOverrideIdentifiers } from '../../../../../platform/configuration/common/configurationRegistry.js';
 import { ConfigurationService } from '../../../../../platform/configuration/common/configurationService.js';
-import { getGlobalConfigurationValue } from '../../../../../platform/agentHost/common/agentHostConfigurationSync.js';
 import { ConfigurationDefaultOverridesContribution, WorkspaceService } from '../../browser/configurationService.js';
 import { ConfigurationEditingErrorCode } from '../../common/configurationEditing.js';
 import { IFileService } from '../../../../../platform/files/common/files.js';
@@ -60,6 +59,11 @@ import { PolicyCategory } from '../../../../../base/common/policy.js';
 import { ExperimentalSettingsService } from '../../common/experimentalSettings.js';
 import { DisposableStore } from '../../../../../base/common/lifecycle.js';
 import { CancellationError } from '../../../../../base/common/errors.js';
+
+function getGlobalConfigurationValue<T>(configurationService: IConfigurationService, settingId: string): T | undefined {
+	const inspected = configurationService.inspect<T>(settingId);
+	return inspected.policyValue ?? inspected.userValue ?? inspected.applicationValue ?? inspected.defaultValue;
+}
 
 suite('ConfigurationDefaultOverridesContribution', () => {
 
