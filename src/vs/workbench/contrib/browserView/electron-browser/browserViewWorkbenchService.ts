@@ -4,8 +4,7 @@
  *--------------------------------------------------------------------------------------------*/
 
 import { BrowserViewChangeEvent, BrowserViewEventData, BrowserViewCommandId, BrowserViewPresentation, BrowserViewStorageScope, IBrowserViewEditorOpenOptions, IBrowserViewInfo, IBrowserViewOwner, IBrowserViewService, IBrowserViewTheme, ipcBrowserViewChannelName, reviveBrowserViewInfo } from '../../../../platform/browserView/common/browserView.js';
-import { matchesBrowserViewSandboxSession } from '../../../../platform/browserView/common/browserViewGroup.js';
-import { BrowserViewEventEmitters, createBrowserViewEventEmitters, BrowserViewSharingState, IBrowserViewWorkbenchService, IBrowserViewModel, BrowserViewModel, IBrowserViewContextualFilter, IBrowserViewFilterContext, IBrowserViewOpenHandler, IBrowserViewWorkbenchCreateOptions } from '../common/browserView.js';
+import { BrowserViewEventEmitters, createBrowserViewEventEmitters, IBrowserViewWorkbenchService, IBrowserViewModel, BrowserViewModel, IBrowserViewContextualFilter, IBrowserViewFilterContext, IBrowserViewOpenHandler, IBrowserViewWorkbenchCreateOptions } from '../common/browserView.js';
 import { IMainProcessService } from '../../../../platform/ipc/common/mainProcessService.js';
 import { ProxyChannel } from '../../../../base/parts/ipc/common/ipc.js';
 import { IInstantiationService } from '../../../../platform/instantiation/common/instantiation.js';
@@ -36,9 +35,6 @@ import { INativeWorkbenchEnvironmentService } from '../../../services/environmen
 import { ITunnelProxyInfo } from '../../../../platform/tunnel/common/tunnelProxy.js';
 import { generateUuid } from '../../../../base/common/uuid.js';
 import { DeferredPromise, raceTimeout } from '../../../../base/common/async.js';
-import { AgentNetworkDomainSettingId } from '../../../../platform/networkFilter/common/settings.js';
-import { INotificationService } from '../../../../platform/notification/common/notification.js';
-import { localize } from '../../../../nls.js';
 
 export const BrowserMaxHistoryEntriesSettingId = 'workbench.browser.maxHistoryEntries';
 export const BrowserRemoteProxyEnabledSettingId = 'workbench.browser.enableRemoteProxy';
@@ -106,7 +102,6 @@ export class BrowserViewWorkbenchService extends Disposable implements IBrowserV
 		@INativeWorkbenchEnvironmentService private readonly environmentService: INativeWorkbenchEnvironmentService,
 		@IThemeService private readonly themeService: IThemeService,
 		@IAccessibilityService private readonly accessibilityService: IAccessibilityService,
-		@INotificationService private readonly notificationService: INotificationService,
 	) {
 		super();
 		const channel = mainProcessService.getChannel(ipcBrowserViewChannelName);
@@ -123,13 +118,6 @@ export class BrowserViewWorkbenchService extends Disposable implements IBrowserV
 		this._register(this.workspaceTrustManagementService.onDidChangeTrust(() => this._updateWindowConfiguration()));
 		this._register(this.workspaceContextService.onDidChangeWorkspaceFolders(() => this._updateWindowConfiguration()));
 		this._register(this.configurationService.onDidChangeConfiguration(e => {
-			if (
-				e.affectsConfiguration(AgentNetworkDomainSettingId.NetworkFilter)
-				&& this.configurationService.getValue<boolean>(AgentNetworkDomainSettingId.NetworkFilter)
-				&& [...this._known.values()].some(input => input.model?.sharingState === BrowserViewSharingState.Shared && !input.model.isDirectlyShareable)
-			) {
-				this.notificationService.info(localize('browser.networkFilteringEnabled', "Agent access to browser tabs was revoked because network filtering was enabled."));
-			}
 			if (e.affectsConfiguration(BrowserMaxHistoryEntriesSettingId) || e.affectsConfiguration(BrowserRemoteProxyEnabledSettingId)) {
 				this._updateWindowConfiguration();
 			}
@@ -201,15 +189,12 @@ export class BrowserViewWorkbenchService extends Disposable implements IBrowserV
 	}
 
 	getContextualBrowserViews(context?: IBrowserViewFilterContext): Map<string, BrowserEditorInput> {
-		if (this._contextualFilters.size === 0 && context?.sandboxSessionId === undefined) {
+		if (this._contextualFilters.size === 0) {
 			return this._known;
 		}
 		const filters = [...this._contextualFilters];
 		const result = new Map<string, BrowserEditorInput>();
 		for (const [id, input] of this._known) {
-			if (!matchesBrowserViewSandboxSession(input.model?.owner, input.model?.sandboxSessionId, context?.sandboxSessionId)) {
-				continue;
-			}
 			if (filters.every(filter => filter.include(input, { ...context }))) {
 				result.set(id, input);
 			}
@@ -381,7 +366,6 @@ export class BrowserViewWorkbenchService extends Disposable implements IBrowserV
 						associatedResource,
 						session: createOptions?.session ?? { scope: await this._resolveStorageScope() },
 						initialAudiences: createOptions?.initialAudiences,
-						sandboxNetworkRestrictions: createOptions?.sandboxNetworkRestrictions,
 						initialUrl: createOptions ? createOptions.initialUrl : data.url,
 						openSource: createOptions?.openSource
 					}

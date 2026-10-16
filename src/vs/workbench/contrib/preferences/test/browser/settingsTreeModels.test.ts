@@ -13,8 +13,6 @@ import { ConfigurationScope } from '../../../../../platform/configuration/common
 import { TestConfigurationService } from '../../../../../platform/configuration/test/common/testConfigurationService.js';
 import { TestInstantiationService } from '../../../../../platform/instantiation/test/common/instantiationServiceMock.js';
 import { IProductService } from '../../../../../platform/product/common/productService.js';
-import { AgentNetworkDomainSettingId } from '../../../../../platform/networkFilter/common/settings.js';
-import { AgentSandboxSettingId } from '../../../../../platform/sandbox/common/settings.js';
 import { IWorkbenchConfigurationService } from '../../../../services/configuration/common/configuration.js';
 import { ExperimentalSettingsService, IExperimentalSettingsService } from '../../../../services/configuration/common/experimentalSettings.js';
 import { IWorkbenchEnvironmentService } from '../../../../services/environment/common/environmentService.js';
@@ -277,78 +275,6 @@ suite('SettingsTree search results', () => {
 });
 
 suite('SettingsTree', () => {
-	test('settingKeyToDisplayFormat - sandbox outbound connections', () => {
-		assert.deepStrictEqual([
-			settingKeyToDisplayFormat(AgentSandboxSettingId.AgentSandboxAllowNetwork),
-			settingKeyToDisplayFormat(AgentSandboxSettingId.AgentSandboxAllowNetwork, 'chat'),
-			settingKeyToDisplayFormat(AgentSandboxSettingId.AgentSandboxAllowNetwork, 'chat.agent.sandbox'),
-			settingKeyToDisplayFormat(AgentSandboxSettingId.AgentSandboxAllowNetwork, 'chat.agent.sandbox.network'),
-			settingKeyToDisplayFormat('other.allowNetwork'),
-		], [
-			{ category: 'Chat › Agent › Sandbox › Network', label: 'Allow Outbound Connections' },
-			{ category: 'Agent › Sandbox › Network', label: 'Allow Outbound Connections' },
-			{ category: 'Network', label: 'Allow Outbound Connections' },
-			{ category: '', label: 'Allow Outbound Connections' },
-			{ category: 'Other', label: 'Allow Network' },
-		]);
-	});
-
-	test('settingKeyToDisplayFormat - allowed network domains', () => {
-		assert.deepStrictEqual([
-			settingKeyToDisplayFormat(AgentNetworkDomainSettingId.AllowedNetworkDomains),
-			settingKeyToDisplayFormat(AgentNetworkDomainSettingId.AllowedNetworkDomains, 'chat'),
-			settingKeyToDisplayFormat(AgentNetworkDomainSettingId.AllowedNetworkDomains, 'chat.agent.sandbox'),
-			settingKeyToDisplayFormat(AgentNetworkDomainSettingId.AllowedNetworkDomains, 'chat.agent.sandbox.network'),
-		], [
-			{ category: 'Chat › Agent › Sandbox › Network', label: 'Allowed Domains' },
-			{ category: 'Agent › Sandbox › Network', label: 'Allowed Domains' },
-			{ category: 'Network', label: 'Allowed Domains' },
-			{ category: '', label: 'Allowed Domains' },
-		]);
-	});
-
-	test('settingKeyToDisplayFormat - denied network domains', () => {
-		assert.deepStrictEqual([
-			settingKeyToDisplayFormat(AgentNetworkDomainSettingId.DeniedNetworkDomains),
-			settingKeyToDisplayFormat(AgentNetworkDomainSettingId.DeniedNetworkDomains, 'chat.agent.sandbox'),
-			settingKeyToDisplayFormat(AgentNetworkDomainSettingId.DeniedNetworkDomains, 'chat.agent.sandbox.network'),
-		], [
-			{ category: 'Chat › Agent › Sandbox › Network', label: 'Denied Domains' },
-			{ category: 'Network', label: 'Denied Domains' },
-			{ category: '', label: 'Denied Domains' },
-		]);
-	});
-
-	test('settingKeyToDisplayFormat - sandbox bypass', () => {
-		assert.deepStrictEqual([
-			settingKeyToDisplayFormat(AgentSandboxSettingId.AgentSandboxAllowUnsandboxedCommands),
-			settingKeyToDisplayFormat(AgentSandboxSettingId.AgentSandboxAllowUnsandboxedCommands, 'chat'),
-			settingKeyToDisplayFormat(AgentSandboxSettingId.AgentSandboxAllowUnsandboxedCommands, 'chat.agent.sandbox'),
-			settingKeyToDisplayFormat('other.allowUnsandboxedCommands'),
-		], [
-			{ category: 'Chat › Agent › Sandbox', label: 'Allow Sandbox Bypass' },
-			{ category: 'Agent › Sandbox', label: 'Allow Sandbox Bypass' },
-			{ category: '', label: 'Allow Sandbox Bypass' },
-			{ category: 'Other', label: 'Allow Unsandboxed Commands' },
-		]);
-	});
-
-	test('settingKeyToDisplayFormat - sandbox local network', () => {
-		assert.deepStrictEqual({
-			keys: [AgentSandboxSettingId.AgentSandboxAllowNetwork, AgentSandboxSettingId.AgentSandboxAllowLocalNetwork],
-			display: ['', 'chat', 'chat.agent.sandbox', 'chat.agent.sandbox.network'].map(group =>
-				settingKeyToDisplayFormat(AgentSandboxSettingId.AgentSandboxAllowLocalNetwork, group)),
-		}, {
-			keys: ['chat.agent.sandbox.network.allowNetwork', 'chat.agent.sandbox.network.allowLocalNetwork'],
-			display: [
-				{ category: 'Chat › Agent › Sandbox › Network', label: 'Allow Local Network' },
-				{ category: 'Agent › Sandbox › Network', label: 'Allow Local Network' },
-				{ category: 'Network', label: 'Allow Local Network' },
-				{ category: '', label: 'Allow Local Network' },
-			],
-		});
-	});
-
 	test('settingKeyToDisplayFormat', () => {
 		assert.deepStrictEqual(
 			settingKeyToDisplayFormat('foo.bar'),
@@ -391,60 +317,6 @@ suite('SettingsTree', () => {
 				category: 'Foo › 1 Leading',
 				label: 'Number'
 			});
-	});
-
-	test('settingKeyToDisplayFormat - sandbox placeholder settings', () => {
-		assert.deepStrictEqual([
-			settingKeyToDisplayFormat(AgentSandboxSettingId.AgentSandboxMcpServers, 'chat.agent.sandbox'),
-			settingKeyToDisplayFormat(AgentSandboxSettingId.AgentSandboxLspServers, 'chat.agent.sandbox'),
-		], [
-			{ category: '', label: 'Sandbox MCP Servers' },
-			{ category: '', label: 'Sandbox LSP Servers' },
-		]);
-	});
-
-	test('settingKeyToDisplayFormat - sandbox developer tool file system access', () => {
-		assert.deepStrictEqual({
-			key: AgentSandboxSettingId.AgentSandboxAllowDevToolAccess,
-			display: ['', 'chat', 'chat.agent.sandbox', 'chat.agent.sandbox.fileSystem'].map(group =>
-				settingKeyToDisplayFormat(AgentSandboxSettingId.AgentSandboxAllowDevToolAccess, group)),
-		}, {
-			key: 'chat.agent.sandbox.fileSystem.allowDevToolAccess',
-			display: [
-				{ category: 'Chat › Agent › Sandbox › File System', label: 'Allow Dev Tool Access' },
-				{ category: 'Agent › Sandbox › File System', label: 'Allow Dev Tool Access' },
-				{ category: 'File System', label: 'Allow Dev Tool Access' },
-				{ category: '', label: 'Allow Dev Tool Access' },
-			],
-		});
-	});
-
-	test('settingKeyToDisplayFormat - sandbox credential authentication', () => {
-		for (const [key, label] of [
-			[AgentSandboxSettingId.AgentSandboxAuthenticateGit, 'Authenticate git'],
-			[AgentSandboxSettingId.AgentSandboxAuthenticateGh, 'Authenticate gh'],
-		] as const) {
-			assert.deepStrictEqual(
-				['', 'chat.agent.sandbox', 'chat.agent.sandbox.credentials'].map(group => settingKeyToDisplayFormat(key, group)),
-				[
-					{ category: 'Chat › Agent › Sandbox › Credentials', label },
-					{ category: 'Credentials', label },
-					{ category: '', label },
-				],
-			);
-		}
-	});
-
-	test('settingKeyToDisplayFormat - sandbox user-configured paths', () => {
-		assert.deepStrictEqual(
-			['', 'chat.agent.sandbox', 'chat.agent.sandbox.fileSystem'].map(group =>
-				settingKeyToDisplayFormat(AgentSandboxSettingId.AgentSandboxUserConfiguredPaths, group)),
-			[
-				{ category: 'Chat › Agent › Sandbox › File System', label: 'User-Configured Paths' },
-				{ category: 'File System', label: 'User-Configured Paths' },
-				{ category: '', label: 'User-Configured Paths' },
-			],
-		);
 	});
 
 	test('settingKeyToDisplayFormat - with category', () => {

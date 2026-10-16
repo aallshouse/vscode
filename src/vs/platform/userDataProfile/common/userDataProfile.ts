@@ -29,7 +29,6 @@ export const enum ProfileResourceType {
 	Tasks = 'tasks',
 	Extensions = 'extensions',
 	GlobalState = 'globalState',
-	Mcp = 'mcp',
 	LanguageModels = 'languageModels',
 }
 
@@ -54,7 +53,6 @@ export interface IUserDataProfile {
 	readonly snippetsHome: URI;
 	readonly promptsHome: URI;
 	readonly extensionsResource: URI;
-	readonly mcpResource: URI;
 	readonly languageModelsResource: URI;
 	readonly cacheHome: URI;
 	readonly useDefaultFlags?: UseDefaultProfileFlags;
@@ -78,7 +76,6 @@ export function isUserDataProfile(thing: unknown): thing is IUserDataProfile {
 		&& URI.isUri(candidate.snippetsHome)
 		&& URI.isUri(candidate.promptsHome)
 		&& URI.isUri(candidate.extensionsResource)
-		&& URI.isUri(candidate.mcpResource)
 		&& URI.isUri(candidate.languageModelsResource)
 	);
 }
@@ -157,7 +154,6 @@ export function reviveProfile(profile: UriDto<IUserDataProfile>, scheme: string)
 		snippetsHome: URI.revive(profile.snippetsHome).with({ scheme }),
 		promptsHome: URI.revive(profile.promptsHome).with({ scheme }),
 		extensionsResource: URI.revive(profile.extensionsResource).with({ scheme }),
-		mcpResource: URI.revive(profile.mcpResource).with({ scheme }),
 		languageModelsResource: URI.revive(profile.languageModelsResource).with({ scheme }),
 		cacheHome: URI.revive(profile.cacheHome).with({ scheme }),
 		useDefaultFlags: profile.useDefaultFlags,
@@ -181,7 +177,6 @@ export function toUserDataProfile(id: string, name: string, location: URI, profi
 		snippetsHome: defaultProfile && options?.useDefaultFlags?.snippets ? defaultProfile.snippetsHome : joinPath(location, 'snippets'),
 		promptsHome: defaultProfile && options?.useDefaultFlags?.prompts ? defaultProfile.promptsHome : joinPath(location, 'prompts'),
 		extensionsResource: defaultProfile && options?.useDefaultFlags?.extensions ? defaultProfile.extensionsResource : joinPath(location, 'extensions.json'),
-		mcpResource: defaultProfile && options?.useDefaultFlags?.mcp ? defaultProfile.mcpResource : joinPath(location, 'mcp.json'),
 		languageModelsResource: defaultProfile && options?.useDefaultFlags?.languageModels ? defaultProfile.languageModelsResource : joinPath(location, 'chatLanguageModels.json'),
 		cacheHome: joinPath(profilesCacheHome, id),
 		useDefaultFlags: options?.useDefaultFlags,

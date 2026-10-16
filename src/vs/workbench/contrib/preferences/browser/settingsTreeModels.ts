@@ -11,13 +11,11 @@ import { escapeRegExpCharacters, isFalsyOrWhitespace } from '../../../../base/co
 import { isUndefinedOrNull } from '../../../../base/common/types.js';
 import { URI } from '../../../../base/common/uri.js';
 import { ILanguageService } from '../../../../editor/common/languages/language.js';
-import { localize } from '../../../../nls.js';
 import { ConfigurationTarget, getLanguageTagSettingPlainKey, IConfigurationValue } from '../../../../platform/configuration/common/configuration.js';
 import { ConfigurationDefaultValueSource, ConfigurationScope, EditPresentationTypes, Extensions, IConfigurationRegistry } from '../../../../platform/configuration/common/configurationRegistry.js';
 import { IProductService } from '../../../../platform/product/common/productService.js';
 import { Registry } from '../../../../platform/registry/common/platform.js';
 import { USER_LOCAL_AND_REMOTE_SETTINGS } from '../../../../platform/request/common/request.js';
-import { AgentSandboxSettingId } from '../../../../platform/sandbox/common/settings.js';
 import { APPLICATION_SCOPES, FOLDER_SCOPES, IWorkbenchConfigurationService, LOCAL_MACHINE_SCOPES, REMOTE_MACHINE_SCOPES, WORKSPACE_SCOPES } from '../../../services/configuration/common/configuration.js';
 import { IWorkbenchEnvironmentService } from '../../../services/environment/common/environmentService.js';
 import { IExtensionSetting, ISearchResult, ISetting, ISettingMatch, SettingMatchType, SettingValueType } from '../../../services/preferences/common/preferences.js';
@@ -771,30 +769,6 @@ export function sanitizeId(id: string): string {
 }
 
 export function settingKeyToDisplayFormat(key: string, groupId: string = '', isLanguageTagSetting: boolean = false): { category: string; label: string } {
-	let displayLabel: string | undefined;
-	switch (key) {
-		case AgentSandboxSettingId.AgentSandboxAllowNetwork:
-			displayLabel = localize('agentSandbox.allowNetwork.label', "Allow Outbound Connections");
-			break;
-		case AgentSandboxSettingId.AgentSandboxAllowUnsandboxedCommands:
-			displayLabel = localize('agentSandbox.allowUnsandboxedCommands.label', "Allow Sandbox Bypass");
-			break;
-		case AgentSandboxSettingId.AgentSandboxMcpServers:
-			displayLabel = localize('agentSandbox.mcpServers.label', "Sandbox MCP Servers");
-			break;
-		case AgentSandboxSettingId.AgentSandboxLspServers:
-			displayLabel = localize('agentSandbox.lspServers.label', "Sandbox LSP Servers");
-			break;
-		case AgentSandboxSettingId.AgentSandboxAuthenticateGit:
-			displayLabel = localize('agentSandbox.authenticateGit.label', "Authenticate git");
-			break;
-		case AgentSandboxSettingId.AgentSandboxAuthenticateGh:
-			displayLabel = localize('agentSandbox.authenticateGh.label', "Authenticate gh");
-			break;
-		case AgentSandboxSettingId.AgentSandboxUserConfiguredPaths:
-			displayLabel = localize('agentSandbox.userConfiguredPaths.label', "User-Configured Paths");
-			break;
-	}
 	const lastDotIdx = key.lastIndexOf('.');
 	let category = '';
 	if (lastDotIdx >= 0) {
@@ -811,7 +785,7 @@ export function settingKeyToDisplayFormat(key: string, groupId: string = '', isL
 		key = '$(bracket) ' + key;
 	}
 
-	const label = displayLabel ?? wordifyKey(key);
+	const label = wordifyKey(key);
 	return { category, label };
 }
 
