@@ -5,7 +5,7 @@
 
 import assert from 'assert';
 import { ensureNoDisposablesAreLeakedInTestSuite } from '../../../../base/test/common/utils.js';
-import type { AXNode } from '../../../webContentExtractor/electron-main/cdpAccessibilityDomain.js';
+import type { AXNode } from '../../electron-main/cdpAccessibilityDomain.js';
 import { formatBrowserViewAccessibility, readBrowserViewAccessibilityTree } from '../../electron-main/browserViewAccessibility.js';
 
 suite('BrowserView user accessibility', () => {

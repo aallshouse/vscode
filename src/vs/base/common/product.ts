@@ -37,15 +37,6 @@ export interface IFeaturedExtension {
 	readonly imagePath: string;
 }
 
-export interface IChatSessionRecommendation {
-	readonly extensionId: string;
-	readonly extensionName: string;
-	readonly displayName: string;
-	readonly name: string;
-	readonly description: string;
-	readonly postInstallCommand?: string;
-}
-
 export type ConfigurationSyncStore = {
 	url: string;
 	insidersUrl: string;
@@ -63,38 +54,6 @@ export type ExtensionVirtualWorkspaceSupport = {
 	readonly default?: boolean;
 	readonly override?: boolean;
 };
-
-/**
- * Per-SDK configuration for downloading an agent SDK on demand. The
- * runtime substitutes `{sdkTarget}` in `urlTemplate` against the host's
- * `(platform, arch, libc)` triple via `resolveSdkTarget()` in the agent
- * SDK downloader.
- *
- * `urlTemplate` uses `format2()`-style named placeholders. Today only
- * `{sdkTarget}` is recognised; the build emits e.g.
- * `https://main.vscode-cdn.net/agent-sdk/claude/0.3.168/{sdkTarget}.tgz`
- * and the runtime substitutes `darwin-arm64`, `linux-x64-musl`, etc.
- *
- * See `src/vs/platform/agentHost/node/claude/roadmap.md` Phase 15 for
- * the rationale (macOS Universal compatibility, trust model).
- */
-export interface IAgentSdkProductConfig {
-	readonly version: string;
-	readonly urlTemplate: string;
-}
-
-/**
- * Configuration for downloading the on-device dictation native runtime (the
- * Foundry Local addon + core libraries) on demand. Produced per platform build
- * and stamped by `build/dictation-runtime/produce.ts`; consumed by
- * `foundryLocalRuntime.ts`, which substitutes `{target}` in `urlTemplate`
- * against the host's `<platform>-<arch>` key. Absent in local dev builds, in
- * which case the runtime falls back to the SDK's own `node_modules` payload.
- */
-export interface IDictationRuntimeProductConfig {
-	readonly version: string;
-	readonly urlTemplate: string;
-}
 
 export interface IProductConfiguration {
 	readonly version: string;
@@ -115,7 +74,6 @@ export interface IProductConfiguration {
 	readonly applicationName: string;
 	readonly linuxDesktopName?: string;
 	readonly embedderIdentifier?: string;
-	readonly agentsTelemetryAppName?: string;
 
 	readonly urlProtocol: string;
 	readonly dataFolderName: string; // location for extensions (e.g. ~/.vscode-insiders)
@@ -152,25 +110,6 @@ export interface IProductConfiguration {
 		readonly nlsBaseUrl: string;
 		readonly accessSKUs?: string[];
 		readonly accessScopes?: string[];
-	};
-
-	readonly agentSdks?: { readonly [packageId: string]: IAgentSdkProductConfig };
-
-	readonly copilotVersions?: {
-		readonly runtime: string;
-		readonly sdk: string;
-	};
-
-	readonly dictationRuntime?: IDictationRuntimeProductConfig;
-
-	readonly mcpGallery?: {
-		readonly serviceUrl: string;
-		readonly itemWebUrl: string;
-		readonly publisherUrl: string;
-		readonly supportUrl: string;
-		readonly privacyPolicyUrl: string;
-		readonly termsOfServiceUrl: string;
-		readonly reportUrl: string;
 	};
 
 	readonly extensionPublisherOrgs?: readonly string[];
@@ -256,7 +195,6 @@ export interface IProductConfiguration {
 	}>;
 	readonly extensionsForceVersionByQuality?: readonly string[];
 	readonly builtInExtensionsEnabledWithAutoUpdates: readonly string[];
-	readonly sessionsWindowAllowedExtensions?: readonly string[];
 
 	readonly msftInternalDomains?: string[];
 	readonly linkProtectionTrustedDomains?: readonly string[];
@@ -271,13 +209,8 @@ export interface IProductConfiguration {
 	readonly profileTemplatesUrl?: string;
 
 	readonly commonlyUsedSettings?: string[];
-	readonly aiGeneratedWorkspaceTrust?: IAiGeneratedWorkspaceTrust;
 
-	readonly defaultChatAgent: IDefaultChatAgent;
-	readonly chatParticipantRegistry?: string;
-	readonly chatSessionRecommendations?: IChatSessionRecommendation[];
 	readonly emergencyAlertUrl?: string;
-	readonly voiceWsUrl?: string;
 
 	readonly remoteDefaultExtensionsIfInstalledLocally?: string[];
 
@@ -412,62 +345,4 @@ export interface ISurveyData {
 	languageId: string;
 	editCount: number;
 	userProbability: number;
-}
-
-export interface IAiGeneratedWorkspaceTrust {
-	readonly title: string;
-	readonly checkboxText: string;
-	readonly trustOption: string;
-	readonly dontTrustOption: string;
-	readonly startupTrustRequestLearnMore: string;
-}
-
-export interface IDefaultChatAgent {
-	readonly extensionId: string;
-	readonly chatExtensionId: string;
-
-	readonly chatExtensionOutputId: string;
-	readonly chatExtensionOutputExtensionStateCommand: string;
-
-	readonly documentationUrl: string;
-	readonly skusDocumentationUrl: string;
-	readonly optimizeUsageDocumentationUrl: string;
-	readonly publicCodeMatchesUrl: string;
-	readonly managePlanUrl: string;
-	readonly upgradePlanUrl: string;
-	readonly signUpUrl: string;
-	readonly termsStatementUrl: string;
-	readonly privacyStatementUrl: string;
-
-	readonly provider: {
-		default: { id: string; name: string };
-		enterprise: { id: string; name: string };
-		google: { id: string; name: string };
-		apple: { id: string; name: string };
-		microsoft: { id: string; name: string };
-	};
-
-	readonly providerExtensionId: string;
-	readonly providerUriSetting: string;
-	readonly providerScopes: string[][];
-
-	readonly entitlementUrl: string;
-	readonly entitlementSignupLimitedUrl: string;
-	readonly tokenEntitlementUrl: string;
-	readonly mcpRegistryDataUrl: string;
-	readonly mcpConnectorsUrl?: string;
-	readonly managedSettingsUrl: string;
-
-	readonly chatQuotaExceededContext: string;
-	readonly completionsQuotaExceededContext: string;
-
-	readonly walkthroughCommand: string;
-	readonly completionsMenuCommand: string;
-	readonly chatRefreshTokenCommand: string;
-	readonly generateCommitMessageCommand: string;
-	readonly resolveMergeConflictsCommand: string;
-
-	readonly completionsAdvancedSetting: string;
-	readonly completionsEnablementSetting: string;
-	readonly nextEditSuggestionsSetting: string;
 }

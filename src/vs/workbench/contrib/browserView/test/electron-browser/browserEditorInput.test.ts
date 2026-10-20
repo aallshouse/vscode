@@ -126,7 +126,7 @@ suite('BrowserEditorInput', () => {
 
 		test('reports sharing availability from the model state', () => {
 			const input = createInput({ id: 'sharing-state-browser' });
-			let sharingState = BrowserViewSharingState.BlockedByNetworkPolicy;
+			let sharingState = BrowserViewSharingState.Available;
 			input.model = new class extends mock<IBrowserViewModel>() {
 				override get sharingState(): BrowserViewSharingState { return sharingState; }
 				override readonly onWillDispose = Event.None;
@@ -136,16 +136,13 @@ suite('BrowserEditorInput', () => {
 				override readonly onDidChangeLoadingState = Event.None;
 			}();
 
-			const blocked = input.isSharingAvailable;
-			sharingState = BrowserViewSharingState.Available;
 			const notShared = input.isSharingAvailable;
 			sharingState = BrowserViewSharingState.Shared;
 			const shared = input.isSharingAvailable;
 			sharingState = BrowserViewSharingState.Unavailable;
 			const unavailable = input.isSharingAvailable;
 
-			assert.deepStrictEqual({ blocked, notShared, shared, unavailable }, {
-				blocked: false,
+			assert.deepStrictEqual({ notShared, shared, unavailable }, {
 				notShared: true,
 				shared: true,
 				unavailable: false,

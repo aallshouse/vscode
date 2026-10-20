@@ -125,7 +125,7 @@ suite('IssueFormService', () => {
 		const service = store.add(instantiationService.createInstance(IssueFormService));
 		await service.openAuxIssueReporterLegacy({
 			styles: {}, zoomLevel: 0, enabledExtensions: [], restrictedMode: false,
-			isInstallationPure: true, isSessionsWindow: false, githubAccessToken: '',
+			isInstallationPure: true, githubAccessToken: '',
 		});
 		targetWindow.dispatchEvent(new Event('beforeunload'));
 		assert.deepStrictEqual(events, ['reporter rendered', 'window disposed', 'reporter disposed']);

@@ -45,13 +45,11 @@ suite('StorageMainService', function () {
 		settingsResource: joinPath(inMemoryProfileRoot, 'settingsResource'),
 		keybindingsResource: joinPath(inMemoryProfileRoot, 'keybindingsResource'),
 		tasksResource: joinPath(inMemoryProfileRoot, 'tasksResource'),
-		mcpResource: joinPath(inMemoryProfileRoot, 'mcp.json'),
 		languageModelsResource: joinPath(inMemoryProfileRoot, 'chatLanguageModels.json'),
 		snippetsHome: joinPath(inMemoryProfileRoot, 'snippetsHome'),
 		promptsHome: joinPath(inMemoryProfileRoot, 'promptsHome'),
 		extensionsResource: joinPath(inMemoryProfileRoot, 'extensionsResource'),
 		cacheHome: joinPath(inMemoryProfileRoot, 'cache'),
-		agentPluginsHome: joinPath(inMemoryProfileRoot, 'agentPluginsHome'),
 	};
 
 	class TestStorageMainService extends StorageMainService {

@@ -5,7 +5,7 @@
 
 import assert from 'assert';
 import { bufferToStream, encodeBase64, VSBuffer } from '../../../../../base/common/buffer.js';
-import { IDefaultAccount, IEntitlementsData } from '../../../../../base/common/defaultAccount.js';
+import { IDefaultAccount } from '../../../../../base/common/defaultAccount.js';
 import { Emitter, Event } from '../../../../../base/common/event.js';
 import { IRequestContext, IRequestOptions } from '../../../../../base/parts/request/common/request.js';
 import { mock } from '../../../../../base/test/common/mock.js';
@@ -47,7 +47,6 @@ function createDefaultAccount(overrides: Partial<IDefaultAccount> = {}): IDefaul
 		accountName: 'testuser',
 		sessionId: 'session-1',
 		enterprise: false,
-		entitlementsData: undefined,
 		...overrides,
 	};
 }
@@ -280,19 +279,6 @@ suite('WorkbenchExtensionGalleryManifestService', () => {
 		defaultAccount = createDefaultAccount({ enterprise: true });
 		onDidChangeDefaultAccount.fire(defaultAccount);
 		await new Promise(resolve => setTimeout(resolve, 0));
-
-		assert.strictEqual(service.extensionGalleryManifestStatus, ExtensionGalleryManifestStatus.Available);
-	});
-
-	test('GitHub provider — account with matching SKU → Available', async () => {
-		configurationService.setUserConfiguration(ExtensionGalleryAuthProviderConfigKey, 'github');
-		defaultAccount = createDefaultAccount({
-			enterprise: false,
-			entitlementsData: { access_type_sku: 'copilot_business' } as IEntitlementsData,
-		});
-
-		const service = createService();
-		await service.getExtensionGalleryManifest();
 
 		assert.strictEqual(service.extensionGalleryManifestStatus, ExtensionGalleryManifestStatus.Available);
 	});

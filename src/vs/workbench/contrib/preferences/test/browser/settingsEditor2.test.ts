@@ -16,12 +16,11 @@ import { DisposableStore, toDisposable } from '../../../../../base/common/lifecy
 import { mock } from '../../../../../base/test/common/mock.js';
 import { ensureNoDisposablesAreLeakedInTestSuite } from '../../../../../base/test/common/utils.js';
 import { ConfigurationTarget, IConfigurationChangeEvent } from '../../../../../platform/configuration/common/configuration.js';
-import { ConfigurationScope, Extensions, IConfigurationNode, IConfigurationRegistry } from '../../../../../platform/configuration/common/configurationRegistry.js';
+import { ConfigurationScope } from '../../../../../platform/configuration/common/configurationRegistry.js';
 import { TestConfigurationService } from '../../../../../platform/configuration/test/common/testConfigurationService.js';
 import { IContextViewService } from '../../../../../platform/contextview/browser/contextView.js';
 import { IExtensionGalleryService, IExtensionManagementService } from '../../../../../platform/extensionManagement/common/extensionManagement.js';
 import { IEditorProgressService, IProgressRunner } from '../../../../../platform/progress/common/progress.js';
-import { IManagedSettingsService } from '../../../../../platform/policy/common/copilotManagedSettings.js';
 import { IUserDataSyncEnablementService } from '../../../../../platform/userDataSync/common/userDataSync.js';
 import { ExperimentalSettingsService, IExperimentalSettingsService } from '../../../../services/configuration/common/experimentalSettings.js';
 import { IEditorGroupsService } from '../../../../services/editor/common/editorGroupsService.js';
@@ -36,27 +35,9 @@ import { SettingsTree, SettingsTreeFilter, SettingTreeRenderers } from '../../br
 import { parseQuery, SearchResultIdx, SettingsTreeElement, SettingsTreeModel, SettingsTreeSettingElement } from '../../browser/settingsTreeModels.js';
 import { TOCTree, TOCTreeModel } from '../../browser/tocTree.js';
 import { SettingsTargetsWidget } from '../../browser/preferencesWidgets.js';
-import { IManagedSettingsPresentationService, ManagedSettingsPresentationService } from '../../../../services/configuration/common/managedSettingsPresentation.js';
-import { terminalContribConfiguration } from '../../../terminal/terminalContribExports.js';
-import { Registry } from '../../../../../platform/registry/common/platform.js';
 
 suite('SettingsEditor2', () => {
 	const store = ensureNoDisposablesAreLeakedInTestSuite();
-	const registry = Registry.as<IConfigurationRegistry>(Extensions.Configuration);
-	assert.ok(terminalContribConfiguration);
-	const configurationNode: IConfigurationNode = {
-		id: 'managedEditorPresentationTest',
-		properties: {
-			...Object.fromEntries(Object.entries(terminalContribConfiguration).filter(([, property]) => property.managedSettingsPresentation)),
-			'test.managedGeneric': {
-				type: 'boolean',
-				managedSettingsPresentation: read => read('test.genericPolicy') === false ? false : undefined,
-			},
-		},
-	};
-	suiteSetup(() => registry.registerConfiguration(configurationNode));
-	suiteTeardown(() => registry.deregisterConfigurations([configurationNode]));
-
 	teardown(() => sinon.restore());
 
 	/* eslint-disable local/code-no-bracket-notation-for-identifiers -- Access private editor state without widening the production API. */
@@ -68,8 +49,6 @@ suite('SettingsEditor2', () => {
 			}();
 			store.add(configuration.onDidChangeConfigurationEmitter);
 			const assignments = store.add(new ExperimentalSettingsService());
-			const managedSettingsChanged = store.add(new Emitter<void>());
-			const managedSettings: Record<string, boolean | undefined> = {};
 			const instantiationService = workbenchInstantiationService({ configurationService: () => configuration }, store);
 			instantiationService.stub(IPreferencesService, {});
 			instantiationService.stub(IPreferencesSearchService, {});
@@ -79,11 +58,6 @@ suite('SettingsEditor2', () => {
 			instantiationService.stub(IExtensionGalleryService, { isEnabled: () => false });
 			instantiationService.stub(IEditorProgressService, { show: () => new class extends mock<IProgressRunner>() { override done(): void { } }() });
 			instantiationService.stub(IExperimentalSettingsService, assignments);
-			instantiationService.stub(IManagedSettingsService, new class extends mock<IManagedSettingsService>() {
-				override readonly onDidChangeManagedSettings = managedSettingsChanged.event;
-				override getManagedSettingValue(key: string) { return managedSettings[key]; }
-			}());
-			instantiationService.stub(IManagedSettingsPresentationService, store.add(instantiationService.createInstance(ManagedSettingsPresentationService)));
 
 			const editor = store.add(instantiationService.createInstance(class extends SettingsEditor2 {
 				override layout(): void { }
@@ -198,36 +172,7 @@ suite('SettingsEditor2', () => {
 				override readonly source = ConfigurationTarget.USER;
 				override affectsConfiguration(section: string): boolean { return section === key; }
 			}());
-			return { editor, assignments, managedSettings, managedSettingsChanged, searchModel, settings, rebuild, read, tree, settingsModel, treeFilter: instantiationService.createInstance(SettingsTreeFilter, viewState, false), searchInput: input, viewState, changeConfiguration, onDidRender: onDidRender.event, contextViewService: instantiationService.get(IContextViewService) };
-		}
-
-		for (const [key, policyKey, managedValue] of [
-			['test.managedGeneric', 'test.genericPolicy', false],
-		] as const) {
-			test(`${key} policy changes refresh managed results and unlock when not restricted`, () => {
-				const { managedSettings, managedSettingsChanged, read, rebuild } = createEditor('@hasPolicy', false, [key]);
-				const initial = read().renderedKeys;
-				managedSettings[policyKey] = managedValue;
-				managedSettingsChanged.fire();
-				const required = read();
-				managedSettingsChanged.fire();
-				const unchangedRebuilds = rebuild.callCount;
-				managedSettings[policyKey] = !managedValue;
-				managedSettingsChanged.fire();
-				const optional = read().renderedKeys;
-				managedSettings[policyKey] = managedValue;
-				managedSettingsChanged.fire();
-				delete managedSettings[policyKey];
-				managedSettingsChanged.fire();
-
-				assert.deepStrictEqual({
-					initial, required: { keys: required.renderedKeys, count: required.count },
-					unchangedRebuilds, optional, removed: read().renderedKeys,
-				}, {
-					initial: [], required: { keys: [key], count: '1 Setting Found' },
-					unchangedRebuilds: 1, optional: [], removed: [],
-				});
-			});
+			return { editor, assignments, searchModel, settings, rebuild, read, tree, settingsModel, treeFilter: instantiationService.createInstance(SettingsTreeFilter, viewState, false), searchInput: input, viewState, changeConfiguration, onDidRender: onDidRender.event, contextViewService: instantiationService.get(IContextViewService) };
 		}
 
 		test('configuration changes do not rebuild assignment-filtered results', async () => {

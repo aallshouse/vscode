@@ -13,7 +13,6 @@ import { localize } from '../../../../nls.js';
 import { IContextKeyService } from '../../../../platform/contextkey/common/contextkey.js';
 import { IOnboardingTryoutRunOptions, isOnboardingTryoutSource, OnboardingTryoutSource } from '../../../../platform/onboarding/common/onboardingTryoutHandoff.js';
 import { ITelemetryService } from '../../../../platform/telemetry/common/telemetry.js';
-import { IWorkbenchEnvironmentService } from '../../../services/environment/common/environmentService.js';
 import { onboardingScenarioRegistry } from '../common/onboardingRegistry.js';
 import { IOnboardingRunResult, IOnboardingScenario } from '../common/onboardingScenario.js';
 import { IOnboardingTryoutRunContext, IOnboardingTryoutScenario, IOnboardingTryoutService, IOnboardingTryoutUnavailable, onboardingTryoutPresentationRegistry, OnboardingTryoutAvailability, OnboardingTryoutResult, parseOnboardingTryoutArguments, RUN_ONBOARDING_TRYOUT_COMMAND_ID } from '../common/onboardingTryout.js';
@@ -77,7 +76,6 @@ export class OnboardingTryoutService extends Disposable implements IOnboardingTr
 
 	constructor(
 		@IContextKeyService private readonly contextKeyService: IContextKeyService,
-		@IWorkbenchEnvironmentService private readonly environmentService: IWorkbenchEnvironmentService,
 		@ITelemetryService private readonly telemetryService: ITelemetryService,
 	) {
 		super();
@@ -127,9 +125,8 @@ export class OnboardingTryoutService extends Disposable implements IOnboardingTr
 			return this.unavailable();
 		}
 
-		// AI removed: AI tryouts and tryouts that target the Agents window are
-		// never offered in this build.
-		if (scenario.tryout.isAI || scenario.tryout.targetWindow === 'agents') {
+		// AI removed: AI tryouts are never offered in this build.
+		if (scenario.tryout.isAI) {
 			return { kind: 'hidden' };
 		}
 
@@ -177,7 +174,7 @@ export class OnboardingTryoutService extends Disposable implements IOnboardingTr
 			await Promise.resolve();
 			const scenario = this.getTryout(id);
 			const runOptions = { source: options?.source ?? 'direct', runId: options?.runId ?? generateUuid() } satisfies IOnboardingTryoutRunOptions;
-			const telemetryData: TryoutEvent | undefined = scenario && (scenario.tryout.targetWindow !== 'agents' || this.environmentService.isSessionsWindow)
+			const telemetryData: TryoutEvent | undefined = scenario
 				? { tryoutId: scenario.id, ...runOptions }
 				: undefined;
 			const startTime = Date.now();

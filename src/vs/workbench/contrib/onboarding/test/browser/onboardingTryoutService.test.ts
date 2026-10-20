@@ -19,12 +19,11 @@ import { IProductService } from '../../../../../platform/product/common/productS
 import { ITelemetryData, ITelemetryService, TelemetryLevel } from '../../../../../platform/telemetry/common/telemetry.js';
 import { TelemetryService } from '../../../../../platform/telemetry/common/telemetryService.js';
 import { NullTelemetryServiceShape } from '../../../../../platform/telemetry/common/telemetryUtils.js';
-import { IWorkbenchEnvironmentService } from '../../../../services/environment/common/environmentService.js';
 import { OnboardingTryoutService } from '../../browser/onboardingTryoutService.js';
 import { IOnboardingPresentation, onboardingPresentationRegistry } from '../../common/onboardingPresentation.js';
 import { onboardingScenarioRegistry } from '../../common/onboardingRegistry.js';
 import { OnboardingDismissReason, OnboardingOutcome } from '../../common/onboardingScenario.js';
-import { AGENTS_WINDOW_TRYOUT_PRESENTATION_KIND, createOnboardingTryoutUri, IOnboardingTryout, IOnboardingTryoutRunContext, onboardingTryoutPresentationRegistry, OnboardingTryoutAvailability, OnboardingTryoutPreparation, OnboardingTryoutResult, parseOnboardingTryoutArguments, parseOnboardingTryoutUri, registerOnboardingTryout, registerOnboardingTryoutPresentation, RUN_ONBOARDING_TRYOUT_COMMAND_ID } from '../../common/onboardingTryout.js';
+import { createOnboardingTryoutUri, IOnboardingTryout, IOnboardingTryoutRunContext, onboardingTryoutPresentationRegistry, OnboardingTryoutAvailability, OnboardingTryoutPreparation, OnboardingTryoutResult, parseOnboardingTryoutArguments, parseOnboardingTryoutUri, registerOnboardingTryout, registerOnboardingTryoutPresentation, RUN_ONBOARDING_TRYOUT_COMMAND_ID } from '../../common/onboardingTryout.js';
 
 class CapturingTelemetryService extends NullTelemetryServiceShape {
 	readonly events: { readonly name: string; readonly data?: ITelemetryData }[] = [];
@@ -50,11 +49,11 @@ class CapturingTelemetryService extends NullTelemetryServiceShape {
 suite('OnboardingTryoutService', () => {
 	const store = ensureNoDisposablesAreLeakedInTestSuite();
 
-	function createService(agents = true, telemetryService?: ITelemetryService) {
+	function createService(telemetryService?: ITelemetryService) {
 		const config = new TestConfigurationService();
 		const context = store.add(new ContextKeyService(upcastPartial<IConfigurationService>(config)));
 		const telemetry = new CapturingTelemetryService();
-		const service = store.add(new OnboardingTryoutService(context, upcastPartial<IWorkbenchEnvironmentService>({ isSessionsWindow: agents }), telemetryService ?? telemetry));
+		const service = store.add(new OnboardingTryoutService(context, telemetryService ?? telemetry));
 		return { service, context, telemetry };
 	}
 
@@ -82,7 +81,7 @@ suite('OnboardingTryoutService', () => {
 
 	function registerWindowOpener(open: (id: string) => Promise<void>) {
 		return store.add(onboardingTryoutPresentationRegistry.register({
-			kind: AGENTS_WINDOW_TRYOUT_PRESENTATION_KIND,
+			kind: 'test.windowOpener',
 			getAvailability: () => ({ kind: 'ready' }),
 			prepare: async scenario => ({
 				kind: 'ready',
@@ -212,7 +211,7 @@ suite('OnboardingTryoutService', () => {
 					flush: async () => { },
 				}],
 			}, upcastPartial<IProductService>({ enabledTelemetryLevels: { usage: true, error: true } })));
-			const { service } = createService(true, telemetry);
+			const { service } = createService(telemetry);
 			const contexts: IOnboardingTryoutRunContext[] = [];
 			let disposed = 0;
 			registerTryout();
@@ -258,7 +257,7 @@ suite('OnboardingTryoutService', () => {
 				telemetryLevel: level,
 				appenders: [{ log: name => events.push(name), flush: async () => { } }],
 			}, upcastPartial<IProductService>({ enabledTelemetryLevels: { usage: usageEnabled, error: true } })));
-			const { service } = createService(true, telemetry);
+			const { service } = createService(telemetry);
 			registerTryout();
 			registerPresentation(async () => ({ kind: 'ready', run: async () => ({ kind: 'opened' }) }));
 			await service.run('test.tryout');
@@ -511,22 +510,13 @@ suite('OnboardingTryoutService', () => {
 		assert.deepStrictEqual(result, { kind: 'cancelled' });
 	});
 
-	test('AI and Agents examples are hidden and never route', async () => {
-		const { service } = createService(false);
+	test('AI examples are hidden and never route', async () => {
+		const { service } = createService();
 		let routed = false;
 		registerWindowOpener(async () => { routed = true; });
 		registerTryout({ isAI: true });
 		const ai = { availability: service.getAvailability('test.tryout'), kind: (await service.run('test.tryout')).kind };
 		assert.deepStrictEqual({ ai, routed }, { ai: { availability: { kind: 'hidden' }, kind: 'unavailable' }, routed: false });
-	});
-
-	test('Agents window examples are hidden and never route', async () => {
-		const { service } = createService(false);
-		let routed = false;
-		registerWindowOpener(async () => { routed = true; });
-		registerTryout({ targetWindow: 'agents' });
-		const agents = { availability: service.getAvailability('test.tryout'), kind: (await service.run('test.tryout')).kind };
-		assert.deepStrictEqual({ agents, routed }, { agents: { availability: { kind: 'hidden' }, kind: 'unavailable' }, routed: false });
 	});
 
 	test('offers setup without executing it during availability checks', async () => {

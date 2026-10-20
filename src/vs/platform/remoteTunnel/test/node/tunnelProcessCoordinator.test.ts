@@ -333,8 +333,8 @@ suite('TunnelProcessCoordinator', () => {
 				session: session.processes.find(process => process.args.includes('--accept-server-license-terms'))!.args,
 				service: service.processes.find(process => process.args.includes('install'))!.args,
 			}, {
-				session: ['tunnel', '--accept-server-license-terms', '--log', 'info', '--user-data-dir', 'custom-user-data', '--delegate-to-editor', '--name', 'test_host', '--parent-process-id', String(process.pid)],
-				service: ['tunnel', 'service', 'install', '--accept-server-license-terms', '--log', 'info', '--user-data-dir', 'custom-user-data', '--name', 'test_host'],
+				session: ['tunnel', '--accept-server-license-terms', '--log', 'info', '--name', 'test_host', '--parent-process-id', String(process.pid)],
+				service: ['tunnel', 'service', 'install', '--accept-server-license-terms', '--log', 'info', '--name', 'test_host'],
 			});
 		} finally {
 			for (const process of [...session.processes, ...service.processes]) {

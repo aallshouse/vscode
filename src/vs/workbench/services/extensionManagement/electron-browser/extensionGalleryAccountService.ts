@@ -113,7 +113,6 @@ export class GitHubGalleryAccountProvider extends AbstractGalleryAccountProvider
 
 	constructor(
 		@IDefaultAccountService private readonly defaultAccountService: IDefaultAccountService,
-		@IProductService private readonly productService: IProductService,
 		@ITelemetryService telemetryService: ITelemetryService,
 		@ILogService logService: ILogService,
 	) {
@@ -140,12 +139,6 @@ export class GitHubGalleryAccountProvider extends AbstractGalleryAccountProvider
 	}
 
 	private checkAccess(account: IDefaultAccount): boolean {
-		this.logService.debug('[Marketplace] Checking Account SKU access for configured gallery', account.entitlementsData?.access_type_sku);
-		if (account.entitlementsData?.access_type_sku
-			&& this.productService.extensionsGallery?.accessSKUs?.includes(account.entitlementsData.access_type_sku)) {
-			this.logService.debug('[Marketplace] Account has access to configured gallery');
-			return true;
-		}
 		this.logService.debug('[Marketplace] Checking enterprise account access for configured gallery', account.enterprise);
 		return account.enterprise;
 	}

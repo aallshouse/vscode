@@ -14,7 +14,6 @@ import { ITunnelProxyInfo } from '../../../../platform/tunnel/common/tunnelProxy
 import { IDialogService } from '../../../../platform/dialogs/common/dialogs.js';
 import { IStorageService, StorageScope, StorageTarget } from '../../../../platform/storage/common/storage.js';
 import { localize } from '../../../../nls.js';
-import { ISandboxNetworkRestrictions } from '../../../../platform/sandbox/common/sandboxSettingsResolutionHelper.js';
 import {
 	BrowserHistoryStore,
 	ISerializedBrowserFaviconsSnapshot,
@@ -59,13 +58,11 @@ import {
 	IBrowserDeviceProfile,
 	IBrowserViewPermissionRequestEvent,
 	IBrowserElementSelectionState,
-	isBrowserViewStorageScopeShareableWithAgent,
 	IBrowserViewHost,
 	IBrowserViewAccessibilitySnapshot,
 } from '../../../../platform/browserView/common/browserView.js';
 import { ITelemetryService } from '../../../../platform/telemetry/common/telemetry.js';
 import { isLocalhostAuthority } from '../../../../platform/url/common/trustedDomains.js';
-import { IAgentNetworkFilterService } from '../../../../platform/networkFilter/common/networkFilterService.js';
 import { ILogService } from '../../../../platform/log/common/log.js';
 import { IBrowserZoomService } from './browserZoomService.js';
 import type { IntegratedBrowserOpenSource } from '../../../../platform/browserView/common/browserViewTelemetry.js';
@@ -75,8 +72,6 @@ export const enum BrowserViewSharingState {
 	Shared = 'shared',
 	/** Tools are available but the page is not shared. */
 	Available = 'available',
-	/** The current page cannot be shared because its URL is blocked by network policy. */
-	BlockedByNetworkPolicy = 'blockedByNetworkPolicy',
 	/** Browser tools are disabled — sharing is not possible. */
 	Unavailable = 'unavailable',
 }
@@ -224,8 +219,6 @@ export interface IBrowserViewContextualFilter {
 }
 
 export interface IBrowserViewFilterContext {
-	/** Restrict visibility to browser storage isolated for this agent session. */
-	sandboxSessionId?: string;
 	/**
 	 * The session *resource* URI string (`session.resource.toString()`) of the
 	 * relevant session, if any. This is the same value stored in
@@ -250,7 +243,6 @@ export interface IBrowserViewOpenHandler {
 }
 
 export interface IBrowserViewWorkbenchCreateOptions {
-	readonly sandboxNetworkRestrictions?: ISandboxNetworkRestrictions;
 	readonly owner: IBrowserViewOwner;
 	readonly session: BrowserViewSessionSelector;
 	readonly initialAudiences?: readonly IBrowserViewAudience[];
@@ -394,7 +386,6 @@ export interface IBrowserViewCDPService {
  * This model proxies calls to the main process browser view service using its unique ID.
  */
 export interface IBrowserViewModel extends IDisposable {
-	readonly sandboxSessionId: string | undefined;
 	readonly id: string;
 	readonly host: IBrowserViewHost;
 	readonly owner: IBrowserViewOwner;
@@ -415,7 +406,6 @@ export interface IBrowserViewModel extends IDisposable {
 	readonly history: BrowserHistoryStore;
 	readonly permissions: BrowserPermissionStore;
 	readonly sharingState: BrowserViewSharingState;
-	readonly isDirectlyShareable: boolean;
 	readonly isRemoteSession: boolean;
 	readonly zoomFactor: number;
 	readonly canZoomIn: boolean;
@@ -508,7 +498,6 @@ export function createBrowserViewEventEmitters(store: DisposableStore): BrowserV
 }
 
 export class BrowserViewModel extends Disposable implements IBrowserViewModel {
-	readonly sandboxSessionId: string | undefined;
 	private _url: string = '';
 	private _owner: IBrowserViewOwner;
 	private _title: string = '';
@@ -583,12 +572,10 @@ export class BrowserViewModel extends Disposable implements IBrowserViewModel {
 		@IDialogService private readonly dialogService: IDialogService,
 		@IStorageService private readonly storageService: IStorageService,
 		@IBrowserZoomService private readonly zoomService: IBrowserZoomService,
-		@IAgentNetworkFilterService private readonly agentNetworkFilterService: IAgentNetworkFilterService,
 		@ILogService private readonly logService: ILogService,
 	) {
 		super();
 		this._owner = owner;
-		this.sandboxSessionId = initialState.sandboxSessionId;
 
 		// Initialize state
 		this._url = initialState.url;
@@ -732,8 +719,6 @@ export class BrowserViewModel extends Disposable implements IBrowserViewModel {
 			this._updateSharingState();
 		}));
 
-		this._register(this.agentNetworkFilterService.onDidChange(() => this._updateSharingState()));
-
 		this._register(this.onDidChangeRemoteStatus(isRemoteSession => {
 			this._isRemoteSession = isRemoteSession;
 		}));
@@ -761,13 +746,7 @@ export class BrowserViewModel extends Disposable implements IBrowserViewModel {
 		if (this._audiences.some(audience => audience.type === 'agent')) {
 			return BrowserViewSharingState.Shared;
 		}
-		if (!this.isDirectlyShareable && this._url && !this.agentNetworkFilterService.isUriAllowed(URI.parse(this._url))) {
-			return BrowserViewSharingState.BlockedByNetworkPolicy;
-		}
 		return BrowserViewSharingState.Available;
-	}
-	get isDirectlyShareable(): boolean {
-		return isBrowserViewStorageScopeShareableWithAgent(this.storageScope, this.agentNetworkFilterService.isEnabled());
 	}
 	get zoomFactor(): number { return browserZoomFactors[this._browserZoomIndex]; }
 	get canZoomIn(): boolean { return this._browserZoomIndex < browserZoomFactors.length - 1; }
@@ -967,41 +946,6 @@ export class BrowserViewModel extends Disposable implements IBrowserViewModel {
 		if (this.sharingState === BrowserViewSharingState.Shared) {
 			return this;
 		}
-		if (this.sharingState === BrowserViewSharingState.BlockedByNetworkPolicy) {
-			const uri = URI.parse(this._url);
-			await this.dialogService.info(
-				localize('browserView.shareBlocked.title', "Cannot Share with Agent"),
-				this.agentNetworkFilterService.formatError(uri),
-			);
-			return undefined;
-		}
-		if (!this.isDirectlyShareable) {
-			const result = await this.dialogService.confirm({
-				type: 'question',
-				message: localize('browserView.openShareableCopy.message', "Open a New Tab for Sharing?"),
-				detail: localize('browserView.openShareableCopy.detail', "This tab does not enforce the configured policy restrictions required for agent sharing.\n\nOpen the page in a new tab to share it with agents."),
-				primaryButton: localize('browserView.openShareableCopy.confirm', "&&Open and Share"),
-				cancelButton: localize('browserView.openShareableCopy.cancel', "Cancel"),
-			});
-			this.telemetryService.publicLog2<IntegratedBrowserShareWithAgentEvent, IntegratedBrowserShareWithAgentClassification>(
-				'integratedBrowser.shareWithAgent',
-				{ shared: result.confirmed, dontAskAgain: false }
-			);
-			if (!result.confirmed) {
-				return undefined;
-			}
-
-			const input = await this.browserViewWorkbenchService.createBrowserView({
-				owner: { type: 'user' },
-				session: {
-					scope: BrowserViewStorageScope.Agent,
-				},
-				initialAudiences: [{ type: 'agent' }],
-				initialUrl: this.url,
-			}, { preserveFocus: false, parentViewId: this.id });
-			return input.resolve();
-		}
-
 		const storedChoice = this.storageService.getBoolean(BrowserViewModel.SHARE_DONT_ASK_KEY, StorageScope.PROFILE);
 
 		if (!storedChoice) {

@@ -201,7 +201,6 @@ async function withAsyncTestCodeEditorAndInlineCompletionsModel(
 				[IDefaultAccountService, new class extends mock<IDefaultAccountService>() {
 					override onDidChangeDefaultAccount = Event.None;
 					override getDefaultAccount = async () => null;
-					override setDefaultAccountProvider = () => { };
 				}],
 			);
 

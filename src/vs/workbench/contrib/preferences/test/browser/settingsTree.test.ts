@@ -11,11 +11,9 @@ import { Disposable, toDisposable } from '../../../../../base/common/lifecycle.j
 import { URI } from '../../../../../base/common/uri.js';
 import { ensureNoDisposablesAreLeakedInTestSuite } from '../../../../../base/test/common/utils.js';
 import { ConfigurationTarget, IConfigurationOverrides, IConfigurationValue } from '../../../../../platform/configuration/common/configuration.js';
-import { ConfigurationScope, Extensions, IConfigurationRegistry } from '../../../../../platform/configuration/common/configurationRegistry.js';
-import { Registry } from '../../../../../platform/registry/common/platform.js';
+import { ConfigurationScope } from '../../../../../platform/configuration/common/configurationRegistry.js';
 import { TestConfigurationService } from '../../../../../platform/configuration/test/common/testConfigurationService.js';
 import { IContextMenuService } from '../../../../../platform/contextview/browser/contextView.js';
-import { IManagedSettingsService, NullManagedSettingsService } from '../../../../../platform/policy/common/copilotManagedSettings.js';
 import { IUserDataSyncEnablementService } from '../../../../../platform/userDataSync/common/userDataSync.js';
 import { ISetting } from '../../../../services/preferences/common/preferences.js';
 import { SettingsTarget } from '../../browser/preferencesWidgets.js';
@@ -26,8 +24,6 @@ import { APPLY_ALL_PROFILES_SETTING } from '../../../../services/configuration/c
 import { IWorkbenchEnvironmentService } from '../../../../services/environment/common/environmentService.js';
 import { mock } from '../../../../../base/test/common/mock.js';
 import { TestContextMenuService, workbenchInstantiationService } from '../../../../test/browser/workbenchTestServices.js';
-import { IManagedSettingsPresentationService, ManagedSettingsPresentationService } from '../../../../services/configuration/common/managedSettingsPresentation.js';
-import { terminalContribConfiguration } from '../../../terminal/terminalContribExports.js';
 
 class TestSettingRenderer extends AbstractSettingRenderer {
 	readonly templateId = 'test';
@@ -100,9 +96,7 @@ function createSettingElement(deprecationMessageSeverity: 'warning' | 'info'): S
 		{ extensionRecommendations: undefined } as never,
 		{ currentProfile: { isDefault: true } } as never,
 		new TestConfigurationService() as unknown as never,
-		false,
 		new class extends mock<IExperimentalSettingsService>() { override hasAssignment() { return false; } }(),
-		new class extends mock<IManagedSettingsPresentationService>() { override getValue() { return undefined; } }(),
 	);
 	element.inspectSelf = () => { };
 	return element;
@@ -110,18 +104,12 @@ function createSettingElement(deprecationMessageSeverity: 'warning' | 'info'): S
 
 suite('SettingsTree renderer', () => {
 	const store = ensureNoDisposablesAreLeakedInTestSuite();
-	const registry = Registry.as<IConfigurationRegistry>(Extensions.Configuration);
-	assert.ok(terminalContribConfiguration);
-	const configurationNode = { id: 'sandboxRendererPresentationTest', properties: Object.fromEntries(Object.entries({ ...terminalContribConfiguration }).filter(([, property]) => property.managedSettingsPresentation)) };
-	suiteSetup(() => registry.registerConfiguration(configurationNode));
-	suiteTeardown(() => registry.deregisterConfigurations([configurationNode]));
-
 	suite('array overrides', () => {
-		function renderArray(settingsTarget: SettingsTarget, defaultValue: string[], inherited = false) {
+		function renderArray(settingsTarget: SettingsTarget, defaultValue: string[]) {
 			const key = 'terminal.integrated.commandsToSkipShell';
 			const userValue = [...defaultValue, '-workbench.action.quickOpen'];
 			const defaults = new TestConfigurationService({ [key]: defaultValue });
-			const scoped = new TestConfigurationService(inherited ? {} : { [key]: userValue });
+			const scoped = new TestConfigurationService({ [key]: userValue });
 			const configuration = new class extends TestConfigurationService {
 				isSettingAppliedForAllProfiles(): boolean { return false; }
 				override inspect<T>(key: string, overrides?: IConfigurationOverrides): IConfigurationValue<T> {
@@ -141,9 +129,7 @@ suite('SettingsTree renderer', () => {
 				store.add(service.onDidChangeConfigurationEmitter);
 			}
 			const instantiationService = workbenchInstantiationService({ configurationService: () => configuration }, store);
-			instantiationService.stub(IWorkbenchEnvironmentService, { isSessionsWindow: true });
-			instantiationService.stub(IManagedSettingsService, new NullManagedSettingsService());
-			instantiationService.stub(IManagedSettingsPresentationService, store.add(instantiationService.createInstance(ManagedSettingsPresentationService)));
+			instantiationService.stub(IWorkbenchEnvironmentService, {});
 			instantiationService.stub(IExperimentalSettingsService, store.add(new ExperimentalSettingsService()));
 			instantiationService.stub(IUserDataSyncEnablementService, { isEnabled: () => false });
 			const contextMenuService = new class extends TestContextMenuService {
@@ -177,7 +163,7 @@ suite('SettingsTree renderer', () => {
 			store.add(renderers.onDidChangeSetting(({ value, manualReset }) => changes.push({ value, manualReset })));
 			const removeLastItem = () => {
 				const remove = Array.from(container.querySelectorAll<HTMLElement>('[aria-label="Remove Item"]')).at(-1);
-				assert.ok(remove, 'The inherited array item must be removable');
+				assert.ok(remove, 'The array item must be removable');
 				remove.click();
 			};
 			const reset = async () => {
@@ -186,26 +172,7 @@ suite('SettingsTree renderer', () => {
 				assert.ok(action);
 				await action.run(element);
 			};
-			return { changes, removeLastItem, reset, render, scoped, key, element, userValue };
-		}
-
-		for (const defaultValue of [[], ['default-command']]) {
-			test(`preserves the explicit ${defaultValue.length ? 'nonempty' : 'empty'} default array when clearing an inherited Agents value`, async () => {
-				const { changes, removeLastItem, render, scoped, key, element } = renderArray(ConfigurationTarget.WORKSPACE, defaultValue, true);
-				removeLastItem();
-				await scoped.setUserConfiguration(key, changes[0].value);
-				render();
-
-				assert.deepStrictEqual({
-					changes,
-					displayed: element.value,
-					configured: element.isConfigured,
-				}, {
-					changes: [{ value: defaultValue, manualReset: false }],
-					displayed: defaultValue,
-					configured: true,
-				});
-			});
+			return { changes, removeLastItem, reset, render, scoped, key, element };
 		}
 
 		for (const { name, target, expected } of [
@@ -220,8 +187,8 @@ suite('SettingsTree renderer', () => {
 			});
 		}
 
-		test('Reset Setting still removes the Agents array override and restores inheritance', async () => {
-			const { changes, reset, render, scoped, key, element, userValue } = renderArray(ConfigurationTarget.WORKSPACE, []);
+		test('Reset Setting removes the workspace array override', async () => {
+			const { changes, reset, render, scoped, key, element } = renderArray(ConfigurationTarget.WORKSPACE, []);
 			await reset();
 			await scoped.setUserConfiguration(key, changes[0].value);
 			render();
@@ -232,7 +199,7 @@ suite('SettingsTree renderer', () => {
 				configured: element.isConfigured,
 			}, {
 				changes: [{ value: undefined, manualReset: true }],
-				displayed: userValue,
+				displayed: [],
 				configured: false,
 			});
 		});

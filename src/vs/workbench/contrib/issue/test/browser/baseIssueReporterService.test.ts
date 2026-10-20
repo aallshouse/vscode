@@ -73,7 +73,7 @@ suite('BaseIssueReporterService', () => {
 		instantiationService.stub(ILogService, { warn: message => { warnings.push(message); } });
 		const reporter = store.add(instantiationService.createInstance(BaseIssueReporterService, false, {
 			styles: {}, zoomLevel: 0, enabledExtensions: [], restrictedMode: false,
-			isInstallationPure: true, isSessionsWindow: false, githubAccessToken: '',
+			isInstallationPure: true, githubAccessToken: '',
 		}, { type: 'test', arch: 'test', release: 'test' }, new class extends mock<IProductConfiguration>() {
 			override readonly nameShort = 'Test';
 			override readonly version = '1.0.0';

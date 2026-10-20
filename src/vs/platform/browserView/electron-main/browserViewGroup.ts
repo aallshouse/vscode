@@ -8,7 +8,7 @@ import { Emitter, Event } from '../../../base/common/event.js';
 import { BrowserView } from './browserView.js';
 import { ICDPTarget, CDPBrowserVersion, CDPWindowBounds, CDPTargetInfo, ICDPConnection, ICDPBrowserTarget, CDPRequest, CDPResponse, CDPEvent } from '../common/cdp/types.js';
 import { CDPBrowserProxy } from '../common/cdp/proxy.js';
-import { IBrowserViewGroup, IBrowserViewGroupFilter, matchesBrowserViewGroupFilter, matchesBrowserViewSandboxSession } from '../common/browserViewGroup.js';
+import { IBrowserViewGroup, IBrowserViewGroupFilter, matchesBrowserViewGroupFilter } from '../common/browserViewGroup.js';
 import { BrowserViewStorageScope, IBrowserViewCreationContext } from '../common/browserView.js';
 import { IBrowserViewMainService } from './browserViewMainService.js';
 import { IProductService } from '../../product/common/productService.js';
@@ -89,7 +89,6 @@ export class BrowserViewGroup extends Disposable implements ICDPBrowserTarget, I
 		if (this._isActive) {
 			return;
 		}
-		this._validateAgentGroupStorageScope();
 		this._isActive = true;
 
 		const views = await this.browserViewMainService.getBrowserViews(this.targetContext.host.windowId);
@@ -122,9 +121,7 @@ export class BrowserViewGroup extends Disposable implements ICDPBrowserTarget, I
 	}
 
 	private async _reconcileView(view: BrowserView): Promise<void> {
-		const isolatedSessionId = this.filter.sandboxSessionId;
-		const isolated = matchesBrowserViewSandboxSession(view.owner, view.session.sandboxSessionId, isolatedSessionId);
-		const matches = isolated && matchesBrowserViewGroupFilter(view.id, view.audiences, this.filter);
+		const matches = matchesBrowserViewGroupFilter(view.id, view.audiences, this.filter);
 		if (matches) {
 			await this.addView(view.id);
 		} else {
@@ -162,13 +159,6 @@ export class BrowserViewGroup extends Disposable implements ICDPBrowserTarget, I
 		const view = this.browserViewMainService.tryGetBrowserView(viewId);
 		if (!view) {
 			throw new Error(`Browser view ${viewId} not found`);
-		}
-		const isolatedSessionId = this.filter.sandboxSessionId;
-		if (!matchesBrowserViewSandboxSession(view.owner, view.session.sandboxSessionId, isolatedSessionId)) {
-			throw new Error(`Browser view ${viewId} is not isolated for agent session ${isolatedSessionId}`);
-		}
-		if (this.filter.audience?.type === 'agent') {
-			this.browserViewMainService.validateAgentAccess(view);
 		}
 		this.views.set(view.id, view);
 		this.knownContextIds.add(view.session.id);
@@ -286,16 +276,8 @@ export class BrowserViewGroup extends Disposable implements ICDPBrowserTarget, I
 	}
 
 	async createTarget(url: string, browserContextId?: string): Promise<ICDPTarget> {
-		this._validateAgentGroupStorageScope();
 		if (browserContextId && !this.knownContextIds.has(browserContextId)) {
 			throw new Error(`Unknown browser context ${browserContextId}`);
-		}
-		if (browserContextId && this.filter.audience?.type === 'agent') {
-			const browserSession = BrowserSession.get(browserContextId);
-			if (!browserSession) {
-				throw new Error(`Browser context ${browserContextId} no longer exists`);
-			}
-			this.browserViewMainService.validateAgentStorageScope(browserSession.storageScope);
 		}
 
 		const target = await this.browserViewMainService.createTarget(url, {
@@ -337,7 +319,6 @@ export class BrowserViewGroup extends Disposable implements ICDPBrowserTarget, I
 	}
 
 	async createBrowserContext(): Promise<string> {
-		this._validateAgentGroupStorageScope();
 		const contextId = generateUuid();
 		const sessionSelector = this.targetContext.session;
 		const usesAgentStorage = typeof sessionSelector === 'string'
@@ -349,24 +330,6 @@ export class BrowserViewGroup extends Disposable implements ICDPBrowserTarget, I
 		this.knownContextIds.add(browserSession.id);
 		this.ownedContextIds.add(browserSession.id);
 		return browserSession.id;
-	}
-
-	private _validateAgentGroupStorageScope(): void {
-		if (this.filter.audience?.type === 'agent') {
-			this.browserViewMainService.validateAgentStorageScope(this._getTargetStorageScope());
-		}
-	}
-
-	private _getTargetStorageScope(): BrowserViewStorageScope {
-		if (typeof this.targetContext.session === 'string') {
-			const browserSession = BrowserSession.get(this.targetContext.session);
-			if (!browserSession) {
-				throw new Error(`Browser session ${this.targetContext.session} not found`);
-			}
-			return browserSession.storageScope;
-		}
-
-		return this.targetContext.session.scope;
 	}
 
 	async disposeBrowserContext(browserContextId: string): Promise<void> {

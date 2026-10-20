@@ -11,7 +11,7 @@ import { normalizeDriveLetter, splitRecentLabel } from '../../../base/common/lab
 import { Disposable } from '../../../base/common/lifecycle.js';
 import { Schemas } from '../../../base/common/network.js';
 import { isMacintosh, isWindows } from '../../../base/common/platform.js';
-import { basename, dirname, extUriBiasedIgnorePathCase, isEqual, originalFSPath } from '../../../base/common/resources.js';
+import { basename, extUriBiasedIgnorePathCase, originalFSPath } from '../../../base/common/resources.js';
 import { URI } from '../../../base/common/uri.js';
 import { Promises } from '../../../base/node/pfs.js';
 import { localize } from '../../../nls.js';
@@ -22,7 +22,6 @@ import { StorageScope, StorageTarget } from '../../storage/common/storage.js';
 import { IApplicationStorageMainService } from '../../storage/electron-main/storageMainService.js';
 import { IRecent, IRecentFile, IRecentFolder, IRecentlyOpened, IRecentWorkspace, isRecentFile, isRecentFolder, isRecentWorkspace, restoreRecentlyOpened, toStoreData } from '../common/workspaces.js';
 import { IWorkspaceIdentifier, WORKSPACE_EXTENSION } from '../../workspace/common/workspace.js';
-import { getWorkspaceIdentifier } from '../common/workspaceIdentifier.js';
 import { IWorkspacesManagementMainService } from './workspacesManagementMainService.js';
 import { ResourceMap } from '../../../base/common/map.js';
 import { IDialogMainService } from '../../dialogs/electron-main/dialogMainService.js';
@@ -117,7 +116,7 @@ export class WorkspacesHistoryMainService extends Disposable implements IWorkspa
 		}
 
 		const mergedEntries = await this.mergeEntriesFromStorage({ workspaces, files });
-		workspaces = this.canonicalizeAgentSessionsWorkspaces(mergedEntries.workspaces);
+		workspaces = mergedEntries.workspaces;
 		files = mergedEntries.files;
 
 		if (workspaces.length > WorkspacesHistoryMainService.MAX_TOTAL_RECENT_ENTRIES) {
@@ -196,44 +195,7 @@ export class WorkspacesHistoryMainService extends Disposable implements IWorkspa
 	}
 
 	async getRecentlyOpened(): Promise<IRecentlyOpened> {
-		const recentlyOpened = await this.mergeEntriesFromStorage();
-
-		return {
-			workspaces: this.canonicalizeAgentSessionsWorkspaces(recentlyOpened.workspaces),
-			files: recentlyOpened.files
-		};
-	}
-
-	private canonicalizeAgentSessionsWorkspaces(workspaces: Array<IRecentWorkspace | IRecentFolder>): Array<IRecentWorkspace | IRecentFolder> {
-		const result: Array<IRecentWorkspace | IRecentFolder> = [];
-		let agentsWindowAdded = false;
-
-		for (const recent of workspaces) {
-			if (isRecentWorkspace(recent) && this.isAgentSessionsWorkspace(recent.workspace)) {
-				if (!agentsWindowAdded) {
-					agentsWindowAdded = true;
-					result.push({
-						workspace: getWorkspaceIdentifier(this.environmentMainService.agentSessionsWorkspace),
-						label: localize('agentsWindowRecentWorkspace', "Agents Window")
-					});
-				}
-			} else {
-				result.push(recent);
-			}
-		}
-
-		return result;
-	}
-
-	private isAgentSessionsWorkspace(workspace: IWorkspaceIdentifier): boolean {
-		if (isEqual(workspace.configPath, this.environmentMainService.agentSessionsWorkspace)) {
-			return true;
-		}
-
-		// Recents can retain Agents workspaces from other profile and worktree user-data directories.
-		const agentSessionsWorkspace = this.environmentMainService.agentSessionsWorkspace;
-		return basename(workspace.configPath) === basename(agentSessionsWorkspace)
-			&& basename(dirname(workspace.configPath)) === basename(dirname(agentSessionsWorkspace));
+		return this.mergeEntriesFromStorage();
 	}
 
 	private async mergeEntriesFromStorage(existingEntries?: IRecentlyOpened): Promise<IRecentlyOpened> {
@@ -372,7 +334,7 @@ export class WorkspacesHistoryMainService extends Disposable implements IWorkspa
 		}
 
 		const jumpList: JumpListCategory[] = [];
-		let recentWorkspaces = this.getWindowsJumpListWorkspaces((await this.getRecentlyOpened()).workspaces);
+		let recentWorkspaces = (await this.getRecentlyOpened()).workspaces;
 
 		// Tasks
 		const tasks: JumpListItem[] = [
@@ -411,7 +373,7 @@ export class WorkspacesHistoryMainService extends Disposable implements IWorkspa
 				}
 			}
 			await this.removeRecentlyOpened(toRemove);
-			recentWorkspaces = this.getWindowsJumpListWorkspaces((await this.getRecentlyOpened()).workspaces);
+			recentWorkspaces = (await this.getRecentlyOpened()).workspaces;
 
 			// Add entries up to the slot count Explorer requested (jumpListSettings.minItems).
 			let hasWorkspaces = false;
@@ -460,10 +422,6 @@ export class WorkspacesHistoryMainService extends Disposable implements IWorkspa
 		} catch (error) {
 			this.logService.warn('updateWindowsJumpList#setJumpList', error); // since setJumpList is relatively new API, make sure to guard for errors
 		}
-	}
-
-	private getWindowsJumpListWorkspaces(workspaces: Array<IRecentWorkspace | IRecentFolder>): Array<IRecentWorkspace | IRecentFolder> {
-		return workspaces.filter(recent => isRecentFolder(recent) || !this.isAgentSessionsWorkspace(recent.workspace));
 	}
 
 	private getWindowsJumpListLabel(workspace: IWorkspaceIdentifier | URI, recentLabel: string | undefined): { title: string; description: string } {

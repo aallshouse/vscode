@@ -4,52 +4,20 @@
  *--------------------------------------------------------------------------------------------*/
 
 import { IStringDictionary } from '../../../base/common/collections.js';
-import { IPolicyData } from '../../../base/common/defaultAccount.js';
 import { Emitter, Event } from '../../../base/common/event.js';
 import { Iterable } from '../../../base/common/iterator.js';
 import { Disposable } from '../../../base/common/lifecycle.js';
-import { IManagedSettingsPolicyDefinitions, PolicyName } from '../../../base/common/policy.js';
+import { PolicyName } from '../../../base/common/policy.js';
 import { createDecorator } from '../../instantiation/common/instantiation.js';
 
 export type PolicyValue = string | number | boolean;
 /** The source family that produced an effective policy value. */
 export const enum PolicyValueSource {
 	Device = 'device',
-	NativeMdm = 'nativeMdm',
-	ServerManagedSettings = 'serverManagedSettings',
-	FileManagedSettings = 'fileManagedSettings',
-	MixedManagedSettings = 'mixedManagedSettings',
-	Account = 'account',
-	AccountGate = 'accountGate',
 }
 export type PolicyDefinition = {
 	type: 'string' | 'number' | 'boolean';
-	/** Must be pure and deterministic because source attribution can evaluate it more than once. */
-	value?: (policyData: IPolicyData) => string | number | boolean | undefined;
-	managedSettings?: IManagedSettingsPolicyDefinitions;
-	restrictedValue?: PolicyValue;
 };
-
-/** Returns a structured-clone-safe copy of `definition`, dropping the non-cloneable `value` callback. */
-export function toSerializablePolicyDefinition(definition: PolicyDefinition): PolicyDefinition {
-	return { type: definition.type, managedSettings: definition.managedSettings, restrictedValue: definition.restrictedValue };
-}
-
-/**
- * Returns the value to apply for `definition` when the account-policy gate is active
- * but not satisfied. Uses `definition.restrictedValue` when specified, otherwise falls
- * back to a type-driven safe default.
- */
-export function getRestrictedPolicyValue(definition: PolicyDefinition): PolicyValue {
-	if (definition.restrictedValue !== undefined) {
-		return definition.restrictedValue;
-	}
-	switch (definition.type) {
-		case 'boolean': return false;
-		case 'number': return 0;
-		case 'string': return '';
-	}
-}
 
 export const IPolicyService = createDecorator<IPolicyService>('policy');
 
@@ -108,7 +76,7 @@ export abstract class AbstractPolicyService extends Disposable implements IPolic
 	}
 
 	serialize(): IStringDictionary<{ definition: PolicyDefinition; value: PolicyValue }> {
-		return Iterable.reduce<[PolicyName, PolicyDefinition], IStringDictionary<{ definition: PolicyDefinition; value: PolicyValue }>>(Object.entries(this.policyDefinitions), (r, [name, definition]) => ({ ...r, [name]: { definition: toSerializablePolicyDefinition(definition), value: this.policies.get(name)! } }), {});
+		return Iterable.reduce<[PolicyName, PolicyDefinition], IStringDictionary<{ definition: PolicyDefinition; value: PolicyValue }>>(Object.entries(this.policyDefinitions), (r, [name, definition]) => ({ ...r, [name]: { definition, value: this.policies.get(name)! } }), {});
 	}
 
 	protected getPolicyValues(): IStringDictionary<PolicyValue> {

@@ -33,14 +33,12 @@ import { equals } from '../../../../base/common/arrays.js';
 import { isString } from '../../../../base/common/types.js';
 import { Delayer } from '../../../../base/common/async.js';
 import { IProductService } from '../../../../platform/product/common/productService.js';
-import { isWeb } from '../../../../base/common/platform.js';
 import { IDefaultAccountService } from '../../../../platform/defaultAccount/common/defaultAccount.js';
 
 const SOURCE = 'IWorkbenchExtensionEnablementService';
 
 type WorkspaceType = { readonly virtual: boolean; readonly trusted: boolean };
 
-const EXTENSION_UNIFICATION_SETTING = 'chat.extensionUnification.enabled';
 const MALICIOUS_EXTENSIONS_STORAGE_KEY = 'extensionsEnablement/malicious';
 
 export class ExtensionEnablementService extends Disposable implements IWorkbenchExtensionEnablementService {
@@ -54,14 +52,6 @@ export class ExtensionEnablementService extends Disposable implements IWorkbench
 	private readonly storageManager: StorageManager;
 	private extensionsDisabledExtensions: IExtension[] = [];
 	private readonly delayer = this._register(new Delayer<void>(0));
-
-	// Extension unification
-	private readonly _completionsExtensionId: string | undefined;
-	private readonly _chatExtensionId: string | undefined;
-	private _extensionUnificationEnabled: boolean;
-
-	// Sessions window allow-list (lowercased extension ids)
-	private readonly _sessionsWindowAllowedExtensions: ReadonlySet<string>;
 
 	private _maliciousExtensionsCache: ReadonlyArray<MaliciousExtensionInfo> | undefined;
 
@@ -109,30 +99,6 @@ export class ExtensionEnablementService extends Disposable implements IWorkbench
 
 		// Invalidate the cached malicious extensions list when the stored value changes.
 		this._register(this.storageService.onDidChangeValue(StorageScope.APPLICATION, MALICIOUS_EXTENSIONS_STORAGE_KEY, this._store)(() => this._maliciousExtensionsCache = undefined));
-
-		// Extension unification
-		this._completionsExtensionId = productService.defaultChatAgent?.extensionId.toLowerCase();
-		this._chatExtensionId = productService.defaultChatAgent?.chatExtensionId.toLowerCase();
-		this._sessionsWindowAllowedExtensions = new Set<string>((productService.sessionsWindowAllowedExtensions ?? []).map(id => id.toLowerCase()));
-		const unificationExtensions = [this._completionsExtensionId, this._chatExtensionId].filter(id => !!id);
-
-		// Disabling extension unification should immediately disable the unified extension flow
-		// Enabling extension unification will only take effect after restart
-		// Extension Unification is disabled in web when there is no remote authority
-		if (isWeb && this.environmentService.remoteAuthority === undefined) {
-			this._extensionUnificationEnabled = false;
-		} else {
-			this._extensionUnificationEnabled = this.configurationService.getValue<boolean>(EXTENSION_UNIFICATION_SETTING);
-		}
-		this._register(this.configurationService.onDidChangeConfiguration(e => {
-			if (e.affectsConfiguration(EXTENSION_UNIFICATION_SETTING)) {
-				const extensionUnificationEnabled = this.configurationService.getValue<boolean>(EXTENSION_UNIFICATION_SETTING);
-				if (!extensionUnificationEnabled) {
-					this._extensionUnificationEnabled = false;
-					this._onEnablementChanged.fire(this.extensionsManager.extensions.filter(ext => unificationExtensions.includes(ext.identifier.id.toLowerCase())));
-				}
-			}
-		}));
 
 		// delay notification for extensions disabled until workbench restored
 		if (this.allUserExtensionsDisabled) {
@@ -446,16 +412,8 @@ export class ExtensionEnablementService extends Disposable implements IWorkbench
 			enablementState = EnablementState.DisabledByExtensionKind;
 		}
 
-		else if (this._isDisabledBySessionsWindow(extension)) {
-			enablementState = EnablementState.DisabledByEnvironment;
-		}
-
 		else if (isEnabled && this._isDisabledByExtensionDependency(extension, extensions, workspaceType, computedEnablementStates)) {
 			enablementState = EnablementState.DisabledByExtensionDependency;
-		}
-
-		else if (this._isDisabledByUnification(extension.identifier)) {
-			enablementState = EnablementState.DisabledByUnification;
 		}
 
 		else if (!isEnabled && this._isEnabledInEnv(extension)) {
@@ -611,27 +569,6 @@ export class ExtensionEnablementService extends Disposable implements IWorkbench
 
 	private _isDisabledGlobally(identifier: IExtensionIdentifier): boolean {
 		return this.globalExtensionEnablementService.getDisabledExtensions().some(e => areSameExtensions(e, identifier));
-	}
-
-	private _isDisabledByUnification(identifier: IExtensionIdentifier): boolean {
-		return this._extensionUnificationEnabled && identifier.id.toLowerCase() === this._completionsExtensionId;
-	}
-
-	private _isDisabledBySessionsWindow(extension: IExtension): boolean {
-		if (!this.environmentService.isSessionsWindow) {
-			return false;
-		}
-
-		// Allow-listed extensions are always enabled in the sessions window.
-		if (this._sessionsWindowAllowedExtensions.has(extension.identifier.id.toLowerCase())) {
-			return false;
-		}
-
-		if (extension.isBuiltin && extension.identifier.id.toLowerCase() === this._chatExtensionId) {
-			return false;
-		}
-
-		return !this.extensionManifestPropertiesService.canExecuteOnSessionsWindow(extension.manifest, extension.isBuiltin);
 	}
 
 	private _enableExtension(identifier: IExtensionIdentifier): Promise<boolean> {

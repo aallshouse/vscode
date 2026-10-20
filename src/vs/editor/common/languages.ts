@@ -1057,25 +1057,6 @@ export class ProviderId {
 	}
 }
 
-/** @internal */
-export class VersionedExtensionId {
-	public static tryCreate(extensionId: string | undefined, version: string | undefined): VersionedExtensionId | undefined {
-		if (!extensionId || !version) {
-			return undefined;
-		}
-		return new VersionedExtensionId(extensionId, version);
-	}
-
-	constructor(
-		public readonly extensionId: string,
-		public readonly version: string,
-	) { }
-
-	toString(): string {
-		return `${this.extensionId}@${this.version}`;
-	}
-}
-
 export type InlineCompletionsDisposeReason = { kind: 'lostRace' | 'tokenCancellation' | 'other' | 'empty' | 'notTaken' };
 
 export enum InlineCompletionEndOfLifeReasonKind {
@@ -1128,8 +1109,6 @@ export type LifetimeSummary = {
 	typingIntervalCharacterCount: number;
 	selectedSuggestionInfo: boolean;
 	availableProviders: string;
-	skuPlan: string | undefined;
-	skuType: string | undefined;
 	renameCreated: boolean | undefined;
 	renameDuration: number | undefined;
 	renameTimedOut: boolean | undefined;

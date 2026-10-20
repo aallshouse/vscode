@@ -94,7 +94,7 @@ this._register(registerOnboardingTryout<ICommandTryoutPayload>({
 
 Availability is checked before preparation and again before execution. Feature commands must still enforce their own runtime invariants because state can change during asynchronous work.
 
-Use `isAI: true` for AI examples. Use `targetWindow: 'agents'` when the implementation belongs in the Agents window. The native handoff is request-scoped, cancellable before destination acceptance, and never persisted or replayed after reload.
+Use `isAI: true` for AI examples. The native handoff is request-scoped, cancellable before destination acceptance, and never persisted or replayed after reload.
 
 ## Built-in presentations
 

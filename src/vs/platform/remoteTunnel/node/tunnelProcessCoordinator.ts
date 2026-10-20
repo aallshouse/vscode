@@ -133,7 +133,7 @@ export class TunnelProcessCoordinator extends Disposable implements ITunnelProce
 	constructor(
 		tunnelCliFactory: TunnelCliFactory | undefined,
 		@IConfigurationService private readonly configurationService: IConfigurationService,
-		@INativeEnvironmentService private readonly environmentService: INativeEnvironmentService,
+		@INativeEnvironmentService environmentService: INativeEnvironmentService,
 		@IProductService productService: IProductService,
 		@ITelemetryService private readonly telemetryService: ITelemetryService,
 	) {
@@ -297,7 +297,7 @@ export class TunnelProcessCoordinator extends Disposable implements ITunnelProce
 
 		const args = ['tunnel'];
 		args.push('--accept-server-license-terms', '--log', LogLevelToString(target.logLevel));
-		args.push('--user-data-dir', this.environmentService.userDataPath, '--delegate-to-editor', '--name', tunnelName!, '--parent-process-id', String(process.pid));
+		args.push('--name', tunnelName!, '--parent-process-id', String(process.pid));
 		if (this._preventSleep()) {
 			args.push('--no-sleep');
 		}
@@ -339,7 +339,7 @@ export class TunnelProcessCoordinator extends Disposable implements ITunnelProce
 	}
 
 	private async _installService(logLevel: LogLevel, tunnelName: string, generation: number): Promise<boolean> {
-		const args = ['tunnel', 'service', 'install', '--accept-server-license-terms', '--log', LogLevelToString(logLevel), '--user-data-dir', this.environmentService.userDataPath, '--name', tunnelName];
+		const args = ['tunnel', 'service', 'install', '--accept-server-license-terms', '--log', LogLevelToString(logLevel), '--name', tunnelName];
 		return (await this._runTransient('serviceInstall', args, 'service', generation)) === 0;
 	}
 

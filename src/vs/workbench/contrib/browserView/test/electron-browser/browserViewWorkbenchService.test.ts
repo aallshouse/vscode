@@ -12,7 +12,6 @@ import { upcastPartial } from '../../../../../base/test/common/mock.js';
 import { ensureNoDisposablesAreLeakedInTestSuite } from '../../../../../base/test/common/utils.js';
 import { BrowserViewEvent, BrowserViewPresentation, BrowserViewStorageScope, browserZoomDefaultIndex, IBrowserViewCreateOptions, IBrowserViewInfo, serializeBrowserViewInfo } from '../../../../../platform/browserView/common/browserView.js';
 import { IMainProcessService } from '../../../../../platform/ipc/common/mainProcessService.js';
-import { IAgentNetworkFilterService } from '../../../../../platform/networkFilter/common/networkFilterService.js';
 import { IWorkspaceTrustEnablementService, IWorkspaceTrustManagementService } from '../../../../../platform/workspace/common/workspaceTrust.js';
 import { INativeWorkbenchEnvironmentService } from '../../../../services/environment/electron-browser/environmentService.js';
 import { workbenchInstantiationService } from '../../../../test/browser/workbenchTestServices.js';
@@ -62,10 +61,6 @@ suite('BrowserViewWorkbenchService', () => {
 		instantiationService.stub(IBrowserZoomService, upcastPartial<IBrowserZoomService>({
 			getEffectiveZoomIndex: () => browserZoomDefaultIndex,
 			onDidChangeZoom: Event.None,
-		}));
-		instantiationService.stub(IAgentNetworkFilterService, upcastPartial<IAgentNetworkFilterService>({
-			isEnabled: () => false,
-			onDidChange: Event.None,
 		}));
 		const service = store.add(instantiationService.createInstance(BrowserViewWorkbenchService));
 		instantiationService.stub(IBrowserViewWorkbenchService, service);

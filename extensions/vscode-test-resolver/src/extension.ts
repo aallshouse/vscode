@@ -23,7 +23,6 @@ const enum CharCode {
 let outputChannel: vscode.OutputChannel;
 
 const SLOWED_DOWN_CONNECTION_DELAY = 800;
-const agentHostBridgeConnectionTokenEnvironmentVariable = 'VSCODE_AGENT_HOST_BRIDGE_CONNECTION_TOKEN';
 
 function isExpectedSocketCloseError(error: NodeJS.ErrnoException): boolean {
 	return error.code === 'ECONNRESET' || error.code === 'EPIPE' || error.code === 'ECONNABORTED';
@@ -162,37 +161,6 @@ export function activate(context: vscode.ExtensionContext) {
 			commandArgs.push('--server-data-dir', remoteDataDir);
 
 			commandArgs.push('--connection-token', connectionToken);
-
-			const agentHostPort = getConfiguration('agentHostPort');
-			const agentHostBridgePort = getConfiguration('agentHostBridgePort');
-			if (
-				typeof agentHostPort === 'number' && agentHostPort > 0 &&
-				typeof agentHostBridgePort === 'number' && agentHostBridgePort > 0
-			) {
-				// `agentHostPort` spawns an agent host inside the server;
-				// `agentHostBridgePort` bridges the renderer to an
-				// externally-running one. They contradict each other —
-				// reject up front so the user notices instead of getting
-				// two agent hosts and silently confusing failure modes.
-				throw new Error(
-					`testResolver: 'agentHostPort' and 'agentHostBridgePort' are mutually exclusive. ` +
-					`Configure at most one (got port=${agentHostPort}, bridge=${agentHostBridgePort}).`
-				);
-			}
-			if (typeof agentHostPort === 'number' && agentHostPort > 0) {
-				commandArgs.push('--agent-host-port', String(agentHostPort));
-			}
-
-			// Bridge to an externally-running agent host (e.g. one started
-			// by `code agent host`). Mutually exclusive with `agentHostPort`
-			// — that one spawns its own agent host.
-			if (typeof agentHostBridgePort === 'number' && agentHostBridgePort > 0) {
-				commandArgs.push('--agent-host-bridge-port', String(agentHostBridgePort));
-			}
-			const agentHostBridgeToken = getConfiguration('agentHostBridgeConnectionToken');
-			if (typeof agentHostBridgeToken === 'string' && agentHostBridgeToken) {
-				env[agentHostBridgeConnectionTokenEnvironmentVariable] = agentHostBridgeToken;
-			}
 
 			if (!commit) { // dev mode
 				const serverCommand = process.platform === 'win32' ? 'code-server.bat' : 'code-server.sh';

@@ -19,7 +19,6 @@ import { IOnboardingPresentationRef, IOnboardingRunResult, IOnboardingScenario }
 
 export const RUN_ONBOARDING_TRYOUT_COMMAND_ID = 'workbench.action.onboarding.tryFeature';
 export const ONBOARDING_TRYOUT_URL_AUTHORITY = 'tryout';
-export const AGENTS_WINDOW_TRYOUT_PRESENTATION_KIND = 'agentsWindow';
 
 export interface IOnboardingTryoutCommand {
 	readonly id: string;
@@ -35,7 +34,6 @@ export interface IOnboardingTryoutMetadata {
 	readonly title: string;
 	readonly description: string;
 	readonly isAI?: boolean;
-	readonly targetWindow?: 'agents';
 	/** Whether product-protocol links may request this tryout. Defaults to true and always requires confirmation. */
 	readonly allowExternalLaunch?: boolean;
 	readonly unavailableMessage?: string;

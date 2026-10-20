@@ -1136,7 +1136,7 @@ export function createApiFactoryAndRegisterActors(accessor: ServicesAccessor): I
 			},
 			get isAgentSessionsWorkspace() {
 				checkProposedApiEnabled(extension, 'agentSessionsWorkspace');
-				return !!initData.environment.isSessionsWindow;
+				return false;
 			},
 			updateWorkspaceFolders: (index, deleteCount, ...workspaceFoldersToAdd) => {
 				return extHostWorkspace.updateWorkspaceFolders(extension, index, deleteCount || 0, ...workspaceFoldersToAdd);

@@ -46,10 +46,6 @@ class TestViewDescriptorService extends mock<IViewDescriptorService>() {
 	override readonly onDidChangeViewContainers = Event.None;
 	override readonly onDidChangeContainerLocation = Event.None;
 
-	override canMoveViews(): boolean {
-		return false;
-	}
-
 	override getDefaultViewContainer(_location: ViewContainerLocation) {
 		return undefined;
 	}

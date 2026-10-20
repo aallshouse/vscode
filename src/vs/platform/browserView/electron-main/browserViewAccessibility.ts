@@ -3,7 +3,7 @@
  *  Licensed under the MIT License. See License.txt in the project root for license information.
  *--------------------------------------------------------------------------------------------*/
 
-import type { AXNode } from '../../webContentExtractor/electron-main/cdpAccessibilityDomain.js';
+import type { AXNode } from './cdpAccessibilityDomain.js';
 import type { IBrowserViewAccessibilitySnapshot } from '../common/browserView.js';
 
 export const browserViewAccessibilityMaxNodes = 2000;

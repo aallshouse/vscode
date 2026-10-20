@@ -66,9 +66,8 @@ suite('Policy data merge', () => {
 	});
 
 	test('emits the same key order regardless of which entrypoint declares references', () => {
-		// Mirrors the export, which adds `agentHost` after linking references.
-		const withReferences: PolicyDto = { ...policy('chat.shared', 'SharedPolicy', ['a.setting']), agentHost: { status: 'enforced' } };
-		const withoutReferences: PolicyDto = { ...policy('chat.shared', 'SharedPolicy'), agentHost: { status: 'enforced' } };
+		const withReferences: PolicyDto = policy('chat.shared', 'SharedPolicy', ['a.setting']);
+		const withoutReferences: PolicyDto = policy('chat.shared', 'SharedPolicy');
 		const keysWhenFirst = Object.keys(mergePolicyData([
 			{ source: 'Workbench', data: catalog([withReferences]) },
 			{ source: 'Agents window', data: catalog([withoutReferences]) },

@@ -194,9 +194,6 @@ pub struct Auth {
 	storage: Arc<std::sync::Mutex<Option<StorageWithLastRead>>>,
 	/// Prefix for keyring entries, derived from the namespace.
 	keyring_prefix: String,
-	/// When set, restricts authentication to only this provider.
-	/// The user will not be prompted to choose a provider.
-	forced_provider: Option<AuthProvider>,
 }
 
 trait StorageImplementation: Send + Sync {
@@ -433,14 +430,7 @@ impl Auth {
 			file_storage_path: paths.root().join(filename),
 			storage: Arc::new(std::sync::Mutex::new(None)),
 			keyring_prefix,
-			forced_provider: None,
 		}
-	}
-
-	/// Restricts this `Auth` instance to only allow the given provider.
-	/// When set, the user will not be prompted to choose a provider.
-	pub fn set_provider(&mut self, provider: AuthProvider) {
-		self.forced_provider = Some(provider);
 	}
 
 	fn with_storage<T, F>(&self, op: F) -> T
@@ -553,22 +543,6 @@ impl Auth {
 			None => self.do_device_code_flow_with_provider(provider).await?,
 		};
 
-		self.store_credentials(credentials.clone());
-		Ok(credentials)
-	}
-
-	/// Runs the device-flow login for a specific provider with custom OAuth
-	/// scopes. Unlike [`login`], this is purpose-built for agent host auth
-	/// where the scopes are dictated by the server's protected resource
-	/// metadata rather than hardcoded defaults.
-	pub async fn login_with_scopes(
-		&self,
-		provider: AuthProvider,
-		scopes: Option<String>,
-	) -> Result<StoredCredential, AnyError> {
-		let credentials = self
-			.do_device_code_flow_with_scopes(provider, scopes)
-			.await?;
 		self.store_credentials(credentials.clone());
 		Ok(credentials)
 	}
@@ -749,10 +723,6 @@ impl Auth {
 	}
 
 	async fn prompt_for_provider(&self) -> Result<AuthProvider, AnyError> {
-		if let Some(provider) = self.forced_provider {
-			return Ok(provider);
-		}
-
 		if !*IS_INTERACTIVE_CLI {
 			info!(
 				self.log,
@@ -779,7 +749,7 @@ impl Auth {
 
 	/// Runs the OAuth device code flow with optional custom scopes.
 	/// If `scopes` is `None`, falls back to the provider's default scopes.
-	pub async fn do_device_code_flow_with_scopes(
+	async fn do_device_code_flow_with_scopes(
 		&self,
 		provider: AuthProvider,
 		scopes: Option<String>,

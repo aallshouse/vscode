@@ -8,14 +8,11 @@ import { ensureNoDisposablesAreLeakedInTestSuite } from '../../../../../base/tes
 import { settingKeyToDisplayFormat, parseQuery, IParsedQuery, sanitizeId, SearchResultModel, SearchResultIdx, ISettingsEditorViewState, SettingsTreeSettingElement, SettingsTreeModel } from '../../browser/settingsTreeModels.js';
 import { mock } from '../../../../../base/test/common/mock.js';
 import { ILanguageService } from '../../../../../editor/common/languages/language.js';
-import { ConfigurationTarget, IConfigurationOverrides, IConfigurationValue } from '../../../../../platform/configuration/common/configuration.js';
+import { ConfigurationTarget } from '../../../../../platform/configuration/common/configuration.js';
 import { ConfigurationScope } from '../../../../../platform/configuration/common/configurationRegistry.js';
 import { TestConfigurationService } from '../../../../../platform/configuration/test/common/testConfigurationService.js';
 import { TestInstantiationService } from '../../../../../platform/instantiation/test/common/instantiationServiceMock.js';
 import { IProductService } from '../../../../../platform/product/common/productService.js';
-import { AgentNetworkDomainSettingId } from '../../../../../platform/networkFilter/common/settings.js';
-import { IManagedSettingsService, NullManagedSettingsService } from '../../../../../platform/policy/common/copilotManagedSettings.js';
-import { AgentSandboxSettingId } from '../../../../../platform/sandbox/common/settings.js';
 import { IWorkbenchConfigurationService } from '../../../../services/configuration/common/configuration.js';
 import { ExperimentalSettingsService, IExperimentalSettingsService } from '../../../../services/configuration/common/experimentalSettings.js';
 import { IWorkbenchEnvironmentService } from '../../../../services/environment/common/environmentService.js';
@@ -23,85 +20,6 @@ import { ISetting, SettingMatchType } from '../../../../services/preferences/com
 import { IUserDataProfileService } from '../../../../services/userDataProfile/common/userDataProfile.js';
 import { TestProductService, TestUserDataProfileService } from '../../../../test/common/workbenchTestServices.js';
 import { EXP_ASSIGNMENT_SETTING_TAG } from '../../common/preferences.js';
-import { SettingsTarget } from '../../browser/preferencesWidgets.js';
-import { LayoutSettings, ModernUIDensity } from '../../../../services/layout/browser/layoutService.js';
-import { IManagedSettingsPresentationService, ManagedSettingsPresentationService } from '../../../../services/configuration/common/managedSettingsPresentation.js';
-
-suite('SettingsTree Agents Window density', () => {
-	const store = ensureNoDisposablesAreLeakedInTestSuite();
-
-	function createModel(isSessionsWindow: boolean, settingsTarget: SettingsTarget) {
-		const key = LayoutSettings.MODERN_UI_DENSITY;
-		const defaults = new TestConfigurationService({ [key]: ModernUIDensity.Default });
-		const workspace = new TestConfigurationService();
-		const configuration = new class extends TestConfigurationService {
-			isSettingAppliedForAllProfiles(): boolean { return false; }
-			override inspect<T>(key: string, overrides?: IConfigurationOverrides): IConfigurationValue<T> {
-				const inspected = super.inspect<T>(key, overrides);
-				const defaultValue = defaults.getValue<T>(key);
-				const workspaceValue = workspace.getValue<T>(key);
-				return { ...inspected, defaultValue, workspaceValue, value: workspaceValue ?? inspected.userValue ?? defaultValue };
-			}
-		}({ [key]: ModernUIDensity.Compact });
-		for (const service of [defaults, workspace, configuration]) {
-			store.add(service.onDidChangeConfigurationEmitter);
-		}
-		const instantiationService = store.add(new TestInstantiationService());
-		instantiationService.stub(IWorkbenchConfigurationService, configuration);
-		instantiationService.stub(ILanguageService, { isRegisteredLanguageId: () => true });
-		instantiationService.stub(IUserDataProfileService, new TestUserDataProfileService());
-		instantiationService.stub(IProductService, TestProductService);
-		instantiationService.stub(IWorkbenchEnvironmentService, { isSessionsWindow });
-		instantiationService.stub(IExperimentalSettingsService, store.add(new ExperimentalSettingsService()));
-		instantiationService.stub(IManagedSettingsService, new NullManagedSettingsService());
-		instantiationService.stub(IManagedSettingsPresentationService, store.add(instantiationService.createInstance(ManagedSettingsPresentationService)));
-		const model = store.add(instantiationService.createInstance(SearchResultModel, { settingsTarget }, null, true));
-		model.setResult(SearchResultIdx.Local, {
-			filterMatches: [{
-				setting: new class extends mock<ISetting>() {
-					override key = key;
-					override type = 'string';
-					override enum = [ModernUIDensity.Default, ModernUIDensity.Compact];
-					override description = [];
-					override scope = ConfigurationScope.WINDOW;
-				}(),
-				matches: [], matchType: SettingMatchType.None, keyMatchScore: 0, score: 0,
-			}],
-			exactMatch: false,
-		});
-		const read = () => {
-			const element = model.getElementsByName(key)![0];
-			element.inspectSelf();
-			return { value: element.value, defaultValue: element.defaultValue, configured: element.isConfigured };
-		};
-		return { workspace, read, key };
-	}
-
-	test('shows inherited density until an Agents Window override is set', async () => {
-		const { workspace, read, key } = createModel(true, ConfigurationTarget.WORKSPACE);
-		const inherited = read();
-		await workspace.setUserConfiguration(key, ModernUIDensity.Default);
-		const overridden = read();
-		await workspace.setUserConfiguration(key, undefined);
-
-		const inheritedState = { value: ModernUIDensity.Compact, defaultValue: ModernUIDensity.Default, configured: false };
-		assert.deepStrictEqual({ inherited, overridden, reset: read() }, {
-			inherited: inheritedState,
-			overridden: { value: ModernUIDensity.Default, defaultValue: ModernUIDensity.Default, configured: true },
-			reset: inheritedState,
-		});
-	});
-
-	test('preserves the existing editor-window and User scope display', () => {
-		assert.deepStrictEqual({
-			editorWorkspace: createModel(false, ConfigurationTarget.WORKSPACE).read(),
-			agentsUser: createModel(true, ConfigurationTarget.USER_LOCAL).read(),
-		}, {
-			editorWorkspace: { value: ModernUIDensity.Default, defaultValue: ModernUIDensity.Default, configured: false },
-			agentsUser: { value: ModernUIDensity.Compact, defaultValue: ModernUIDensity.Default, configured: true },
-		});
-	});
-});
 
 suite('SettingsTree ExP assignments', () => {
 	const store = ensureNoDisposablesAreLeakedInTestSuite();
@@ -117,10 +35,8 @@ suite('SettingsTree ExP assignments', () => {
 		instantiationService.stub(ILanguageService, { isRegisteredLanguageId: () => true });
 		instantiationService.stub(IUserDataProfileService, new TestUserDataProfileService());
 		instantiationService.stub(IProductService, TestProductService);
-		instantiationService.stub(IWorkbenchEnvironmentService, { isSessionsWindow: false });
+		instantiationService.stub(IWorkbenchEnvironmentService, {});
 		instantiationService.stub(IExperimentalSettingsService, assignments);
-		instantiationService.stub(IManagedSettingsService, new NullManagedSettingsService());
-		instantiationService.stub(IManagedSettingsPresentationService, store.add(instantiationService.createInstance(ManagedSettingsPresentationService)));
 		const viewState: ISettingsEditorViewState = { settingsTarget: ConfigurationTarget.USER_LOCAL, tagFilters: new Set([EXP_ASSIGNMENT_SETTING_TAG]) };
 		const model = store.add(instantiationService.createInstance(SearchResultModel, viewState, null, true));
 		const settings = ['test.assigned', 'test.experimental', 'test.modified', 'test.spoofed'].map(key => new class extends mock<ISetting>() {
@@ -241,10 +157,8 @@ suite('SettingsTree deprecation warnings', () => {
 			instantiationService.stub(ILanguageService, { isRegisteredLanguageId: () => true });
 			instantiationService.stub(IUserDataProfileService, new TestUserDataProfileService());
 			instantiationService.stub(IProductService, TestProductService);
-			instantiationService.stub(IWorkbenchEnvironmentService, { isSessionsWindow: false });
+			instantiationService.stub(IWorkbenchEnvironmentService, {});
 			instantiationService.stub(IExperimentalSettingsService, store.add(new ExperimentalSettingsService()));
-			instantiationService.stub(IManagedSettingsService, new NullManagedSettingsService());
-			instantiationService.stub(IManagedSettingsPresentationService, store.add(instantiationService.createInstance(ManagedSettingsPresentationService)));
 			const viewState: ISettingsEditorViewState = { settingsTarget: ConfigurationTarget.USER_LOCAL };
 			const model = store.add(search
 				? instantiationService.createInstance(SearchResultModel, viewState, null, true)
@@ -302,10 +216,8 @@ suite('SettingsTree search results', () => {
 		instantiationService.stub(ILanguageService, { isRegisteredLanguageId: () => true });
 		instantiationService.stub(IUserDataProfileService, new TestUserDataProfileService());
 		instantiationService.stub(IProductService, TestProductService);
-		instantiationService.stub(IWorkbenchEnvironmentService, { isSessionsWindow: false });
+		instantiationService.stub(IWorkbenchEnvironmentService, {});
 		instantiationService.stub(IExperimentalSettingsService, store.add(new ExperimentalSettingsService()));
-		instantiationService.stub(IManagedSettingsService, new NullManagedSettingsService());
-		instantiationService.stub(IManagedSettingsPresentationService, store.add(instantiationService.createInstance(ManagedSettingsPresentationService)));
 		return store.add(instantiationService.createInstance(SearchResultModel,
 			{ settingsTarget: ConfigurationTarget.USER_LOCAL, query: 'test' }, null, true));
 	}
@@ -363,78 +275,6 @@ suite('SettingsTree search results', () => {
 });
 
 suite('SettingsTree', () => {
-	test('settingKeyToDisplayFormat - sandbox outbound connections', () => {
-		assert.deepStrictEqual([
-			settingKeyToDisplayFormat(AgentSandboxSettingId.AgentSandboxAllowNetwork),
-			settingKeyToDisplayFormat(AgentSandboxSettingId.AgentSandboxAllowNetwork, 'chat'),
-			settingKeyToDisplayFormat(AgentSandboxSettingId.AgentSandboxAllowNetwork, 'chat.agent.sandbox'),
-			settingKeyToDisplayFormat(AgentSandboxSettingId.AgentSandboxAllowNetwork, 'chat.agent.sandbox.network'),
-			settingKeyToDisplayFormat('other.allowNetwork'),
-		], [
-			{ category: 'Chat › Agent › Sandbox › Network', label: 'Allow Outbound Connections' },
-			{ category: 'Agent › Sandbox › Network', label: 'Allow Outbound Connections' },
-			{ category: 'Network', label: 'Allow Outbound Connections' },
-			{ category: '', label: 'Allow Outbound Connections' },
-			{ category: 'Other', label: 'Allow Network' },
-		]);
-	});
-
-	test('settingKeyToDisplayFormat - allowed network domains', () => {
-		assert.deepStrictEqual([
-			settingKeyToDisplayFormat(AgentNetworkDomainSettingId.AllowedNetworkDomains),
-			settingKeyToDisplayFormat(AgentNetworkDomainSettingId.AllowedNetworkDomains, 'chat'),
-			settingKeyToDisplayFormat(AgentNetworkDomainSettingId.AllowedNetworkDomains, 'chat.agent.sandbox'),
-			settingKeyToDisplayFormat(AgentNetworkDomainSettingId.AllowedNetworkDomains, 'chat.agent.sandbox.network'),
-		], [
-			{ category: 'Chat › Agent › Sandbox › Network', label: 'Allowed Domains' },
-			{ category: 'Agent › Sandbox › Network', label: 'Allowed Domains' },
-			{ category: 'Network', label: 'Allowed Domains' },
-			{ category: '', label: 'Allowed Domains' },
-		]);
-	});
-
-	test('settingKeyToDisplayFormat - denied network domains', () => {
-		assert.deepStrictEqual([
-			settingKeyToDisplayFormat(AgentNetworkDomainSettingId.DeniedNetworkDomains),
-			settingKeyToDisplayFormat(AgentNetworkDomainSettingId.DeniedNetworkDomains, 'chat.agent.sandbox'),
-			settingKeyToDisplayFormat(AgentNetworkDomainSettingId.DeniedNetworkDomains, 'chat.agent.sandbox.network'),
-		], [
-			{ category: 'Chat › Agent › Sandbox › Network', label: 'Denied Domains' },
-			{ category: 'Network', label: 'Denied Domains' },
-			{ category: '', label: 'Denied Domains' },
-		]);
-	});
-
-	test('settingKeyToDisplayFormat - sandbox bypass', () => {
-		assert.deepStrictEqual([
-			settingKeyToDisplayFormat(AgentSandboxSettingId.AgentSandboxAllowUnsandboxedCommands),
-			settingKeyToDisplayFormat(AgentSandboxSettingId.AgentSandboxAllowUnsandboxedCommands, 'chat'),
-			settingKeyToDisplayFormat(AgentSandboxSettingId.AgentSandboxAllowUnsandboxedCommands, 'chat.agent.sandbox'),
-			settingKeyToDisplayFormat('other.allowUnsandboxedCommands'),
-		], [
-			{ category: 'Chat › Agent › Sandbox', label: 'Allow Sandbox Bypass' },
-			{ category: 'Agent › Sandbox', label: 'Allow Sandbox Bypass' },
-			{ category: '', label: 'Allow Sandbox Bypass' },
-			{ category: 'Other', label: 'Allow Unsandboxed Commands' },
-		]);
-	});
-
-	test('settingKeyToDisplayFormat - sandbox local network', () => {
-		assert.deepStrictEqual({
-			keys: [AgentSandboxSettingId.AgentSandboxAllowNetwork, AgentSandboxSettingId.AgentSandboxAllowLocalNetwork],
-			display: ['', 'chat', 'chat.agent.sandbox', 'chat.agent.sandbox.network'].map(group =>
-				settingKeyToDisplayFormat(AgentSandboxSettingId.AgentSandboxAllowLocalNetwork, group)),
-		}, {
-			keys: ['chat.agent.sandbox.network.allowNetwork', 'chat.agent.sandbox.network.allowLocalNetwork'],
-			display: [
-				{ category: 'Chat › Agent › Sandbox › Network', label: 'Allow Local Network' },
-				{ category: 'Agent › Sandbox › Network', label: 'Allow Local Network' },
-				{ category: 'Network', label: 'Allow Local Network' },
-				{ category: '', label: 'Allow Local Network' },
-			],
-		});
-	});
-
 	test('settingKeyToDisplayFormat', () => {
 		assert.deepStrictEqual(
 			settingKeyToDisplayFormat('foo.bar'),
@@ -477,60 +317,6 @@ suite('SettingsTree', () => {
 				category: 'Foo › 1 Leading',
 				label: 'Number'
 			});
-	});
-
-	test('settingKeyToDisplayFormat - sandbox placeholder settings', () => {
-		assert.deepStrictEqual([
-			settingKeyToDisplayFormat(AgentSandboxSettingId.AgentSandboxMcpServers, 'chat.agent.sandbox'),
-			settingKeyToDisplayFormat(AgentSandboxSettingId.AgentSandboxLspServers, 'chat.agent.sandbox'),
-		], [
-			{ category: '', label: 'Sandbox MCP Servers' },
-			{ category: '', label: 'Sandbox LSP Servers' },
-		]);
-	});
-
-	test('settingKeyToDisplayFormat - sandbox developer tool file system access', () => {
-		assert.deepStrictEqual({
-			key: AgentSandboxSettingId.AgentSandboxAllowDevToolAccess,
-			display: ['', 'chat', 'chat.agent.sandbox', 'chat.agent.sandbox.fileSystem'].map(group =>
-				settingKeyToDisplayFormat(AgentSandboxSettingId.AgentSandboxAllowDevToolAccess, group)),
-		}, {
-			key: 'chat.agent.sandbox.fileSystem.allowDevToolAccess',
-			display: [
-				{ category: 'Chat › Agent › Sandbox › File System', label: 'Allow Dev Tool Access' },
-				{ category: 'Agent › Sandbox › File System', label: 'Allow Dev Tool Access' },
-				{ category: 'File System', label: 'Allow Dev Tool Access' },
-				{ category: '', label: 'Allow Dev Tool Access' },
-			],
-		});
-	});
-
-	test('settingKeyToDisplayFormat - sandbox credential authentication', () => {
-		for (const [key, label] of [
-			[AgentSandboxSettingId.AgentSandboxAuthenticateGit, 'Authenticate git'],
-			[AgentSandboxSettingId.AgentSandboxAuthenticateGh, 'Authenticate gh'],
-		] as const) {
-			assert.deepStrictEqual(
-				['', 'chat.agent.sandbox', 'chat.agent.sandbox.credentials'].map(group => settingKeyToDisplayFormat(key, group)),
-				[
-					{ category: 'Chat › Agent › Sandbox › Credentials', label },
-					{ category: 'Credentials', label },
-					{ category: '', label },
-				],
-			);
-		}
-	});
-
-	test('settingKeyToDisplayFormat - sandbox user-configured paths', () => {
-		assert.deepStrictEqual(
-			['', 'chat.agent.sandbox', 'chat.agent.sandbox.fileSystem'].map(group =>
-				settingKeyToDisplayFormat(AgentSandboxSettingId.AgentSandboxUserConfiguredPaths, group)),
-			[
-				{ category: 'Chat › Agent › Sandbox › File System', label: 'User-Configured Paths' },
-				{ category: 'File System', label: 'User-Configured Paths' },
-				{ category: '', label: 'User-Configured Paths' },
-			],
-		);
 	});
 
 	test('settingKeyToDisplayFormat - with category', () => {
