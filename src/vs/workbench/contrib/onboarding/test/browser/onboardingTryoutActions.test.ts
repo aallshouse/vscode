@@ -26,7 +26,6 @@ import { ContextKeyExpr } from '../../../../../platform/contextkey/common/contex
 import { NullTelemetryService } from '../../../../../platform/telemetry/common/telemetryUtils.js';
 import { IEditorPane, IResourceDiffEditorInput } from '../../../../common/editor.js';
 import { IView, IViewDescriptor, IViewDescriptorService } from '../../../../common/views.js';
-import { IChatEntitlementService } from '../../../../services/chat/common/chatEntitlementService.js';
 import { IEditorService } from '../../../../services/editor/common/editorService.js';
 import { IWorkbenchEnvironmentService } from '../../../../services/environment/common/environmentService.js';
 import { IViewsService } from '../../../../services/views/common/viewsService.js';
@@ -294,11 +293,6 @@ suite('Onboarding tryout presentations', () => {
 			const prepare = sinon.spy(sample.presentation, 'prepare');
 			const service = store.add(new OnboardingTryoutService(
 				createContextKeys(),
-				upcastPartial<IChatEntitlementService>({
-					onDidChangeSentiment: Event.None,
-					onDidChangeEntitlement: Event.None,
-					onDidChangeAnonymous: Event.None,
-				}),
 				upcastPartial<IWorkbenchEnvironmentService>({ isSessionsWindow: true }),
 				NullTelemetryService,
 			));

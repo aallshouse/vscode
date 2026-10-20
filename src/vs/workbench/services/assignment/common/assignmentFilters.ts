@@ -6,12 +6,10 @@
 import type { IExperimentationFilterProvider } from 'tas-client';
 import { Emitter } from '../../../../base/common/event.js';
 import { Disposable } from '../../../../base/common/lifecycle.js';
-import { getInternalOrg } from '../../../../platform/assignment/common/assignment.js';
 import { IDefaultAccountService } from '../../../../platform/defaultAccount/common/defaultAccount.js';
 import { ExtensionIdentifier } from '../../../../platform/extensions/common/extensions.js';
 import { ILogService } from '../../../../platform/log/common/log.js';
 import { IStorageService, StorageScope, StorageTarget } from '../../../../platform/storage/common/storage.js';
-import { IChatEntitlementService } from '../../chat/common/chatEntitlementService.js';
 import { IExtensionService } from '../../extensions/common/extensions.js';
 
 export enum ExtensionsFilter {
@@ -61,9 +59,6 @@ enum StorageVersionKeys {
 	CopilotExtensionVersion = 'extensionsAssignmentFilterProvider.copilotExtensionVersion',
 	CopilotChatExtensionVersion = 'extensionsAssignmentFilterProvider.copilotChatExtensionVersion',
 	CompletionsVersion = 'extensionsAssignmentFilterProvider.copilotCompletionsVersion',
-	CopilotSku = 'extensionsAssignmentFilterProvider.copilotSku',
-	CopilotInternalOrg = 'extensionsAssignmentFilterProvider.copilotInternalOrg',
-	CopilotTrackingId = 'extensionsAssignmentFilterProvider.copilotTrackingId',
 	CopilotIsSn = 'extensionsAssignmentFilterProvider.copilotIsSn',
 	CopilotIsFcv1 = 'extensionsAssignmentFilterProvider.copilotIsFcv1',
 }
@@ -74,9 +69,6 @@ export class CopilotAssignmentFilterProvider extends Disposable implements IExpe
 	// TODO@benibenj remove this when completions have been ported to chat
 	private copilotCompletionsVersion: string | undefined;
 
-	private copilotInternalOrg: string | undefined;
-	private copilotSku: string | undefined;
-	private copilotTrackingId: string | undefined;
 	private copilotIsSn: string | undefined;
 	private copilotIsFcv1: string | undefined;
 
@@ -87,7 +79,6 @@ export class CopilotAssignmentFilterProvider extends Disposable implements IExpe
 		@IExtensionService private readonly _extensionService: IExtensionService,
 		@ILogService private readonly _logService: ILogService,
 		@IStorageService private readonly _storageService: IStorageService,
-		@IChatEntitlementService private readonly _chatEntitlementService: IChatEntitlementService,
 		@IDefaultAccountService private readonly _defaultAccountService: IDefaultAccountService,
 	) {
 		super();
@@ -95,24 +86,16 @@ export class CopilotAssignmentFilterProvider extends Disposable implements IExpe
 		this.copilotExtensionVersion = this._storageService.get(StorageVersionKeys.CopilotExtensionVersion, StorageScope.PROFILE);
 		this.copilotChatExtensionVersion = this._storageService.get(StorageVersionKeys.CopilotChatExtensionVersion, StorageScope.PROFILE);
 		this.copilotCompletionsVersion = this._storageService.get(StorageVersionKeys.CompletionsVersion, StorageScope.PROFILE);
-		this.copilotSku = this._storageService.get(StorageVersionKeys.CopilotSku, StorageScope.PROFILE);
-		this.copilotInternalOrg = this._storageService.get(StorageVersionKeys.CopilotInternalOrg, StorageScope.PROFILE);
-		this.copilotTrackingId = this._storageService.get(StorageVersionKeys.CopilotTrackingId, StorageScope.PROFILE);
 		this.copilotIsSn = this._storageService.get(StorageVersionKeys.CopilotIsSn, StorageScope.PROFILE);
 		this.copilotIsFcv1 = this._storageService.get(StorageVersionKeys.CopilotIsFcv1, StorageScope.PROFILE);
 
 		this.updateExtensionVersions();
-		this.updateCopilotEntitlementInfo();
 		this.updateCopilotTokenInfo();
 
 		this._register(this._extensionService.onDidChangeExtensionsStatus(extensionIdentifiers => {
 			if (extensionIdentifiers.some(identifier => ExtensionIdentifier.equals(identifier, 'github.copilot') || ExtensionIdentifier.equals(identifier, 'github.copilot-chat'))) {
 				this.updateExtensionVersions();
 			}
-		}));
-
-		this._register(this._chatEntitlementService.onDidChangeEntitlement(() => {
-			this.updateCopilotEntitlementInfo();
 		}));
 
 		this._register(this._defaultAccountService.onDidChangeCopilotTokenInfo(() => {
@@ -151,27 +134,6 @@ export class CopilotAssignmentFilterProvider extends Disposable implements IExpe
 		this._storageService.store(StorageVersionKeys.CopilotExtensionVersion, this.copilotExtensionVersion, StorageScope.PROFILE, StorageTarget.MACHINE);
 		this._storageService.store(StorageVersionKeys.CopilotChatExtensionVersion, this.copilotChatExtensionVersion, StorageScope.PROFILE, StorageTarget.MACHINE);
 		this._storageService.store(StorageVersionKeys.CompletionsVersion, this.copilotCompletionsVersion, StorageScope.PROFILE, StorageTarget.MACHINE);
-
-		// Notify that the filters have changed.
-		this._onDidChangeFilters.fire();
-	}
-
-	private updateCopilotEntitlementInfo() {
-		const newSku = this._chatEntitlementService.sku;
-		const newTrackingId = this._chatEntitlementService.copilotTrackingId;
-		const newInternalOrg = getInternalOrg(this._chatEntitlementService.organisations);
-
-		if (this.copilotSku === newSku && this.copilotInternalOrg === newInternalOrg && this.copilotTrackingId === newTrackingId) {
-			return;
-		}
-
-		this.copilotSku = newSku;
-		this.copilotInternalOrg = newInternalOrg;
-		this.copilotTrackingId = newTrackingId;
-
-		this._storageService.store(StorageVersionKeys.CopilotSku, this.copilotSku, StorageScope.PROFILE, StorageTarget.MACHINE);
-		this._storageService.store(StorageVersionKeys.CopilotInternalOrg, this.copilotInternalOrg, StorageScope.PROFILE, StorageTarget.MACHINE);
-		this._storageService.store(StorageVersionKeys.CopilotTrackingId, this.copilotTrackingId, StorageScope.PROFILE, StorageTarget.MACHINE);
 
 		// Notify that the filters have changed.
 		this._onDidChangeFilters.fire();
@@ -218,12 +180,6 @@ export class CopilotAssignmentFilterProvider extends Disposable implements IExpe
 				return this.copilotCompletionsVersion ? CopilotAssignmentFilterProvider.trimVersionSuffix(this.copilotCompletionsVersion) : null;
 			case ExtensionsFilter.CopilotChatExtensionVersion:
 				return this.copilotChatExtensionVersion ? CopilotAssignmentFilterProvider.trimVersionSuffix(this.copilotChatExtensionVersion) : null;
-			case ExtensionsFilter.CopilotSku:
-				return this.copilotSku ?? null;
-			case ExtensionsFilter.MicrosoftInternalOrg:
-				return this.copilotInternalOrg ?? null;
-			case ExtensionsFilter.CopilotTrackingId:
-				return this.copilotTrackingId ?? null;
 			case ExtensionsFilter.CopilotIsSn:
 				return this.copilotIsSn ?? null;
 			case ExtensionsFilter.CopilotIsFcv1:
@@ -271,55 +227,18 @@ export enum GitHubAssignmentsFilter {
  * the new userParam key names.
  */
 export class GitHubCoreAssignmentsFilterProvider extends Disposable implements IExperimentationFilterProvider {
-	private copilotTrackingId: string | undefined;
-	private internalOrg: 'vscode' | 'github' | 'microsoft' | undefined;
-	private isInternal = false;
+	// AI removed: there is no Copilot entitlement to derive a tracking id or
+	// internal organization from, so these filters report an external user.
 
 	private readonly _onDidChangeFilters = this._register(new Emitter<void>());
 	readonly onDidChangeFilters = this._onDidChangeFilters.event;
 
-	constructor(
-		@IChatEntitlementService private readonly _chatEntitlementService: IChatEntitlementService,
-	) {
-		super();
-
-		this._register(this._chatEntitlementService.onDidChangeEntitlement(() => this.update()));
-		this.update();
-	}
-
-	private update(): void {
-		const newTrackingId = this._chatEntitlementService.copilotTrackingId ?? this.copilotTrackingId;
-		const newInternalOrg = getInternalOrg(this._chatEntitlementService.organisations);
-		const newIsInternal = this._chatEntitlementService.isInternal;
-
-		if (this.copilotTrackingId === newTrackingId && this.internalOrg === newInternalOrg && this.isInternal === newIsInternal) {
-			return;
-		}
-
-		this.copilotTrackingId = newTrackingId;
-		this.internalOrg = newInternalOrg;
-		this.isInternal = newIsInternal;
-
-		this._onDidChangeFilters.fire();
-	}
-
 	getFilterValue(filter: string): string | null {
-		// copilotTrackingId is the stable user id (it never changes) but can be unavailable
-		// during sign-in delays. Latch the first known value and fall back to it so the
-		// filter is not dropped from later requests once we have seen it.
-		const liveTrackingId = this._chatEntitlementService.copilotTrackingId;
-		if (liveTrackingId) {
-			this.copilotTrackingId = liveTrackingId;
-		}
-		const copilotTrackingId = liveTrackingId ?? this.copilotTrackingId;
-		const internalOrg = getInternalOrg(this._chatEntitlementService.organisations) ?? this.internalOrg;
 		switch (filter) {
-			case GitHubAssignmentsFilter.CopilotTrackingId:
-				return copilotTrackingId ?? null;
 			case GitHubAssignmentsFilter.IsGhOrMsftStaff:
-				return this._chatEntitlementService.isInternal ? '1' : '0';
+				return '0';
 			case GitHubAssignmentsFilter.GhMsftOrExternal:
-				return internalOrg ?? 'external';
+				return 'external';
 			default:
 				return null;
 		}

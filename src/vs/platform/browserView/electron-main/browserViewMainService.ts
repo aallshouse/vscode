@@ -21,7 +21,6 @@ import { ITelemetryService } from '../../telemetry/common/telemetry.js';
 import { localize } from '../../../nls.js';
 import { INativeHostMainService } from '../../native/electron-main/nativeHostMainService.js';
 import { htmlAttributeEncodeValue } from '../../../base/common/strings.js';
-import { BrowserViewInspectElementId } from './browserViewInspector.js';
 import { equals } from '../../../base/common/objects.js';
 import { URI } from '../../../base/common/uri.js';
 import { ILogService } from '../../log/common/log.js';
@@ -582,9 +581,6 @@ export class BrowserViewMainService extends Disposable implements IBrowserViewMa
 		}
 
 		const windowConfiguration = this._windowConfigurations.get(view.host.windowId);
-		const inspectTarget = windowConfiguration?.aiFeaturesDisabled
-			? undefined
-			: params.frame && await view.inspector.getElementHandle(BrowserViewInspectElementId.ContextMenuTarget, params.frame);
 		const menu = new Menu();
 
 		if (params.linkURL) {
@@ -693,20 +689,6 @@ export class BrowserViewMainService extends Disposable implements IBrowserViewMa
 				accelerator: windowConfiguration?.keybindings[BrowserViewCommandId.Reload],
 				click: () => webContents.reload()
 			}));
-		}
-
-		if (inspectTarget) {
-			menu.append(new MenuItem({ type: 'separator' }));
-			menu.append(new MenuItem({
-				label: localize('browser.contextMenu.addElementToChat', 'Add Element to Chat'),
-				click: () => inspectTarget.addToChat()
-			}));
-			menu.append(new MenuItem({
-				label: localize('browser.contextMenu.addComment', 'Add Comment...'),
-				click: () => inspectTarget.addComment()
-			}));
-			void inspectTarget.highlight().catch(() => { });
-			menu.on('menu-will-close', () => inspectTarget.dispose());
 		}
 
 		menu.append(new MenuItem({ type: 'separator' }));

@@ -21,8 +21,7 @@ import { IUntypedEditorInput, Verbosity } from '../../../../common/editor.js';
 import { applyAvailableEditorIds } from '../../../../common/contextkeys.js';
 import { IEditorResolverService, RegisteredEditorPriority } from '../../../../services/editor/common/editorResolverService.js';
 import { workbenchInstantiationService } from '../../../../test/browser/workbenchTestServices.js';
-import { IEditorService, type PreferredGroup } from '../../../../services/editor/common/editorService.js';
-import { formatBrowserEditorList, getBrowserPageResourceNavigationError } from '../../electron-browser/tools/browserToolHelpers.js';
+import { type PreferredGroup } from '../../../../services/editor/common/editorService.js';
 
 class TestBrowserViewWorkbenchService implements IBrowserViewWorkbenchService {
 	declare readonly _serviceBrand: undefined;
@@ -298,31 +297,6 @@ suite('BrowserEditorInput', () => {
 				title: undefined,
 				favicon: undefined
 			}
-		});
-	});
-
-	test('describes and restricts resource-backed pages for browser tools', () => {
-		const associatedResource = URI.file('/workspace/index.html');
-		const input = createInput({
-			id: 'resource-browser',
-			associatedResource,
-			url: associatedResource.toString(),
-			title: 'Resource editor'
-		});
-		const regularInput = createInput({ id: 'regular-browser' });
-
-		assert.deepStrictEqual({
-			context: formatBrowserEditorList(instantiationService.get(IEditorService), [input]),
-			query: getBrowserPageResourceNavigationError(input, associatedResource.with({ query: 'view=preview' }).toString()),
-			fragment: getBrowserPageResourceNavigationError(input, associatedResource.with({ fragment: 'content' }).toString()),
-			otherResource: getBrowserPageResourceNavigationError(input, URI.file('/workspace/other.html').toString()),
-			regularPage: getBrowserPageResourceNavigationError(regularInput, 'https://example.com')
-		}, {
-			context: '- [resource-browser] Resource editor (file:///workspace/index.html) (resource-backed; navigation is limited to this resource) (not visible)',
-			query: undefined,
-			fragment: undefined,
-			otherResource: 'This browser page is associated with a resource and cannot be navigated to a different resource. Only query and fragment changes are allowed. Use a different page or open a new one with the open_browser_page tool.',
-			regularPage: undefined
 		});
 	});
 

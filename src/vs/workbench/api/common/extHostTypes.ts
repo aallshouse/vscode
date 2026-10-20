@@ -30,7 +30,6 @@ import { SnippetString } from './extHostTypes/snippetString.js';
 import { SymbolKind, SymbolTag } from './extHostTypes/symbolInformation.js';
 import { TextEdit } from './extHostTypes/textEdit.js';
 import { WorkspaceEdit } from './extHostTypes/workspaceEdit.js';
-import { HookTypeValue } from '../../contrib/chat/common/promptSyntax/hookTypes.js';
 
 export { CodeActionKind } from './extHostTypes/codeActionKind.js';
 export { ViewColumn } from '../../../platform/editor/common/editor.js';
@@ -3244,6 +3243,9 @@ export class ChatResponseThinkingProgressPart {
 		this.metadata = metadata;
 	}
 }
+
+// AI removed: was `HookTypeValue` from the deleted chat contribution.
+type HookTypeValue = string;
 
 export class ChatResponseHookPart {
 	hookType: HookTypeValue;

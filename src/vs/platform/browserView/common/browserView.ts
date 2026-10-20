@@ -158,8 +158,6 @@ export interface IBrowserViewWindowConfiguration {
 	/** Map of command ID to accelerator label for context menus. */
 	readonly keybindings: { [commandId: string]: string };
 
-	/** Whether AI features are disabled for this window. */
-	readonly aiFeaturesDisabled?: boolean;
 	/** Maximum number of entries to retain per browser session history. */
 	readonly maxHistoryEntries?: number;
 	/**

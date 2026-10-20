@@ -9,7 +9,6 @@ import { ConfigurationTarget } from '../../../../../../platform/configuration/co
 import { TestConfigurationService } from '../../../../../../platform/configuration/test/common/testConfigurationService.js';
 import { NullTelemetryServiceShape } from '../../../../../../platform/telemetry/common/telemetryUtils.js';
 import { TerminalSettingId } from '../../../../../../platform/terminal/common/terminal.js';
-import { TerminalChatAgentToolsSettingId } from '../../../chatAgentTools/common/terminalChatAgentToolsConfiguration.js';
 import { TerminalProfileConfigurationTelemetry } from '../../browser/terminalProfileConfigurationTelemetry.js';
 
 class TestTelemetryService extends NullTelemetryServiceShape {
@@ -23,9 +22,6 @@ class TestTelemetryService extends NullTelemetryServiceShape {
 }
 
 const profileSettings = [
-	{ settingId: TerminalChatAgentToolsSettingId.TerminalProfileLinux, profileType: 'chat', os: 'linux', value: { path: '/bin/bash' } },
-	{ settingId: TerminalChatAgentToolsSettingId.TerminalProfileMacOs, profileType: 'chat', os: 'osx', value: { path: '/bin/zsh' } },
-	{ settingId: TerminalChatAgentToolsSettingId.TerminalProfileWindows, profileType: 'chat', os: 'windows', value: { path: 'pwsh.exe' } },
 	{ settingId: TerminalSettingId.AutomationProfileLinux, profileType: 'automation', os: 'linux', value: { path: '/bin/bash' } },
 	{ settingId: TerminalSettingId.AutomationProfileMacOs, profileType: 'automation', os: 'osx', value: { path: '/bin/zsh' } },
 	{ settingId: TerminalSettingId.AutomationProfileWindows, profileType: 'automation', os: 'windows', value: { path: 'pwsh.exe' } },
@@ -73,7 +69,7 @@ suite('TerminalProfileConfigurationTelemetry', () => {
 	});
 
 	test('reports settings that already have configured values', () => {
-		const configuredSettings = [profileSettings[0], profileSettings[7]];
+		const configuredSettings = [profileSettings[0], profileSettings[4]];
 		const configurationService = new TestConfigurationService(Object.fromEntries(configuredSettings.map(setting => [setting.settingId, setting.value])));
 		const telemetryService = new TestTelemetryService();
 		store.add(new TerminalProfileConfigurationTelemetry(configurationService, telemetryService));

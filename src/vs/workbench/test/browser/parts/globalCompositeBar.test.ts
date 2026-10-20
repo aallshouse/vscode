@@ -245,20 +245,4 @@ suite('AccountsActivityActionViewItem - account tiers', () => {
 			'Manage Language Model Access',
 		]);
 	});
-
-	test('places shared sign-in before ChatGPT and unrelated account commands', async () => {
-		const actionDisposables = disposables.add(new DisposableStore());
-		const github = disposables.add(new Action('github', 'Sign in with GitHub'));
-		const manage = disposables.add(new Action('manage', 'Manage Language Model Access'));
-		const menu = { getActions: () => [[ACCOUNTS_SHARED_SIGN_IN_GROUP, [github]], ['z_manage', [manage]]] };
-		const actions = await resolveMainMenuActions.call(createHarness(true), menu, actionDisposables);
-
-		assert.deepStrictEqual(actions.map(action => action instanceof Separator ? 'separator' : action.label), [
-			'Sign in with GitHub',
-			'separator',
-			'Sign in to ChatGPT',
-			'separator',
-			'Manage Language Model Access',
-		]);
-	});
 });

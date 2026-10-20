@@ -127,21 +127,13 @@ if defined SUITE_FILTER (
 if defined SUITE_FILTER goto skip_nodejs_tests
 echo.
 echo ### node.js integration tests
-call node --input-type=module -e "import { getAgentHostTestProfile } from './src/vs/platform/agentHost/test/node/agentHostTestProfile.ts'; console.log('Agent Host test profile:', getAgentHostTestProfile(), '(' + (process.env.AGENT_HOST_TEST_PROFILE_REASON ?? 'default') + ')');"
-if errorlevel 1 goto :failed
 if defined RUN_GLOB (
 	call .\scripts\test.bat %*
 ) else if defined RUN_FILE (
 	call .\scripts\test.bat %*
 ) else (
-	if "%VSCODE_SKIP_AGENT_HOST_E2E%"=="1" (
-		echo Skipping Agent Host E2E tests because no relevant files changed.
-	) else (
-		call node .\test\integration\agentHost\runner.ts %*
-		if errorlevel 1 goto :failed
-	)
 	set VSCODE_SKIP_PRELAUNCH=1
-	call .\scripts\test.bat --runGlob **\*.integrationTest.js --excludeRunGlob "**/agentHost/test/node/e2e/{providers/*AgentHostE2E,conformance/*}.integrationTest.js" %*
+	call .\scripts\test.bat --runGlob **\*.integrationTest.js %*
 )
 if %errorlevel% neq 0 exit /b %errorlevel%
 :skip_nodejs_tests

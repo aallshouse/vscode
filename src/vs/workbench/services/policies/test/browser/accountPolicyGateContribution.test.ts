@@ -20,7 +20,6 @@ import { IManagedSettingsFreshness, ManagedSettingsFreshnessFailure, ManagedSett
 import { IProductService } from '../../../../../platform/product/common/productService.js';
 import { InMemoryStorageService } from '../../../../../platform/storage/common/storage.js';
 import { NullTelemetryService } from '../../../../../platform/telemetry/common/telemetryUtils.js';
-import { IChatEntitlementService } from '../../../chat/common/chatEntitlementService.js';
 import { AccountPolicyGateContribution } from '../../browser/accountPolicyGateContribution.js';
 import { AccountPolicyGateState, AccountPolicyGateUnsatisfiedReason, ChatAccountPolicyGateActiveContext, IAccountPolicyGateInfo, IAccountPolicyGateService } from '../../common/accountPolicyService.js';
 
@@ -73,18 +72,6 @@ class TestDefaultAccountService extends mock<IDefaultAccountService>() {
 	}
 }
 
-class TestChatEntitlementService extends mock<IChatEntitlementService>() {
-	readonly forceHiddenValues: boolean[] = [];
-	forceHidden: boolean | undefined;
-
-	override setForceHidden(hidden: boolean): void {
-		if (this.forceHidden !== hidden) {
-			this.forceHidden = hidden;
-			this.forceHiddenValues.push(hidden);
-		}
-	}
-}
-
 suite('AccountPolicyGateContribution', () => {
 	const disposables = ensureNoDisposablesAreLeakedInTestSuite();
 	teardown(() => sinon.restore());
@@ -92,7 +79,6 @@ suite('AccountPolicyGateContribution', () => {
 	test('composes account gate and managed settings compatibility into the standard hidden state', async () => {
 		const gateService = disposables.add(new TestAccountPolicyGateService());
 		const defaultAccountService = disposables.add(new TestDefaultAccountService());
-		const chatEntitlementService = new TestChatEntitlementService();
 		const contextKeyService = new MockContextKeyService();
 		const storageService = disposables.add(new InMemoryStorageService());
 		const dialogService = new TestDialogService();
@@ -104,7 +90,6 @@ suite('AccountPolicyGateContribution', () => {
 		disposables.add(new AccountPolicyGateContribution(
 			gateService,
 			contextKeyService,
-			chatEntitlementService,
 			defaultAccountService,
 			new NullLogService(),
 			new TestNotificationService(),
@@ -116,10 +101,9 @@ suite('AccountPolicyGateContribution', () => {
 			NullTelemetryService,
 		));
 
-		const states: { context: boolean | undefined; hidden: boolean | undefined }[] = [];
+		const states: { context: boolean | undefined }[] = [];
 		const captureState = () => states.push({
 			context: ChatAccountPolicyGateActiveContext.getValue(contextKeyService),
-			hidden: chatEntitlementService.forceHidden,
 		});
 
 		captureState();
@@ -148,19 +132,17 @@ suite('AccountPolicyGateContribution', () => {
 
 		assert.deepStrictEqual({
 			states,
-			forceHiddenValues: chatEntitlementService.forceHiddenValues,
 			dialogCount: promptStub.callCount,
 		}, {
 			states: [
-				{ context: false, hidden: false },
-				{ context: true, hidden: true },
-				{ context: false, hidden: false },
-				{ context: true, hidden: true },
-				{ context: true, hidden: true },
-				{ context: true, hidden: true },
-				{ context: false, hidden: false },
+				{ context: false },
+				{ context: true },
+				{ context: false },
+				{ context: true },
+				{ context: true },
+				{ context: true },
+				{ context: false },
 			],
-			forceHiddenValues: [false, true, false, true, false],
 			dialogCount: 0,
 		});
 	});
@@ -181,7 +163,6 @@ suite('AccountPolicyGateContribution', () => {
 		disposables.add(new AccountPolicyGateContribution(
 			gateService,
 			new MockContextKeyService(),
-			new TestChatEntitlementService(),
 			disposables.add(new TestDefaultAccountService()),
 			new NullLogService(),
 			notificationService,
@@ -238,7 +219,6 @@ suite('AccountPolicyGateContribution', () => {
 		disposables.add(new AccountPolicyGateContribution(
 			gateService,
 			new MockContextKeyService(),
-			new TestChatEntitlementService(),
 			defaultAccountService,
 			new NullLogService(),
 			notificationService,
@@ -347,7 +327,6 @@ suite('AccountPolicyGateContribution', () => {
 		disposables.add(new AccountPolicyGateContribution(
 			gateService,
 			new MockContextKeyService(),
-			new TestChatEntitlementService(),
 			defaultAccountService,
 			new NullLogService(),
 			new TestNotificationService(),

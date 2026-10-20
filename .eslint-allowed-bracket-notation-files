@@ -157,7 +157,6 @@ src/vs/sessions/electron-browser/sessions.ts
 src/vs/sessions/test/browser/chatGroupsView.test.ts
 
 # Build, CI, and scripts (48 files)
-build/azure-pipelines/common/apply-sdk-canary-override.ts
 build/azure-pipelines/common/createBuild.ts
 build/azure-pipelines/common/downloadNotice.ts
 build/azure-pipelines/common/getPublishAuthTokens.ts
@@ -199,11 +198,8 @@ build/npm/preinstall.ts
 build/npm/update-localization-extension.ts
 build/rspack/rspack.serve-out.config.mts
 build/win32/explorer-dll-fetcher.ts
-scripts/code-agent-host.js
 scripts/code-server.js
-scripts/code-sessions-web.js
 scripts/code-web.js
-scripts/sync-agent-host-protocol.ts
 scripts/test-agent-host-e2e.ts
 
 # Application bootstrap, server, and environment (41 files)

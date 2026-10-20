@@ -107,9 +107,6 @@ jobs:
         displayName: Install dependencies
         condition: and(succeeded(), ne(variables.NODE_MODULES_RESTORED, 'true'))
 
-      - script: node build/azure-pipelines/common/checkNativeOptionalDeps.ts
-        displayName: Verify native optional dependency binaries
-
       - script: node build/azure-pipelines/distro/mixin-npm.ts
         condition: and(succeeded(), ne(variables.NODE_MODULES_RESTORED, 'true'))
         displayName: Mixin distro node modules
@@ -129,9 +126,6 @@ jobs:
 
       - script: node build/npm/electronTypes.ts
         displayName: Prepare Electron types
-
-
-      - template: ../common/mixin-vscode-capi.yml@self
 
       - script: npm run gulp core-ci
         env:

@@ -18,10 +18,7 @@ import { TerminalContextKeys, TerminalContextKeyStrings } from '../common/termin
 import { terminalStrings } from '../common/terminalStrings.js';
 import { ACTIVE_GROUP, AUX_WINDOW_GROUP, SIDE_GROUP } from '../../../services/editor/common/editorService.js';
 import { DisposableStore } from '../../../../base/common/lifecycle.js';
-import { HasSpeechProvider } from '../../speech/common/speechService.js';
-import { ChatContextKeys } from '../../chat/common/actions/chatContextKeys.js';
 import { hasKey } from '../../../../base/common/types.js';
-import { TerminalContribContextKeyStrings } from '../terminalContribExports.js';
 
 export const enum TerminalContextMenuGroup {
 	Chat = '0_chat',
@@ -38,17 +35,6 @@ export const enum TerminalMenuBarGroup {
 	Manage = '5_manage',
 	Configure = '7_configure'
 }
-
-/**
- * True when a dictation engine is available for the terminal: either the
- * built-in on-device engine (with AI features enabled) or the speech
- * extension's provider. Used to gate the "Start Dictation" context menu entry
- * so it only shows when dictation can actually be started.
- */
-const TerminalDictationAvailable = ContextKeyExpr.or(
-	HasSpeechProvider,
-	ContextKeyExpr.and(ChatContextKeys.enabled, ChatContextKeys.speechToTextConfigured)
-);
 
 export function setupTerminalMenus(): void {
 	MenuRegistry.appendMenuItems(
@@ -194,18 +180,6 @@ export function setupTerminalMenus(): void {
 					order: 3
 				}
 			},
-			{
-				id: MenuId.TerminalInstanceContext,
-				item: {
-					command: {
-						id: TerminalCommandId.StartVoice,
-						title: localize('workbench.action.terminal.startVoiceContext', "Start Dictation"),
-					},
-					group: TerminalContextMenuGroup.Edit,
-					order: 4,
-					when: ContextKeyExpr.and(TerminalDictationAvailable, TerminalContextKeys.terminalDictationInProgress.toNegated())
-				}
-			},
 		]
 	);
 
@@ -313,18 +287,6 @@ export function setupTerminalMenus(): void {
 					},
 					group: TerminalContextMenuGroup.Edit,
 					order: 3
-				}
-			},
-			{
-				id: MenuId.TerminalEditorInstanceContext,
-				item: {
-					command: {
-						id: TerminalCommandId.StartVoice,
-						title: localize('workbench.action.terminal.startVoiceContext', "Start Dictation"),
-					},
-					group: TerminalContextMenuGroup.Edit,
-					order: 4,
-					when: ContextKeyExpr.and(TerminalDictationAvailable, TerminalContextKeys.terminalDictationInProgress.toNegated())
 				}
 			},
 			{
@@ -447,7 +409,6 @@ export function setupTerminalMenus(): void {
 					group: 'navigation',
 					order: 0,
 					when: ContextKeyExpr.and(
-						ContextKeyExpr.not(TerminalContribContextKeyStrings.ChatHasHiddenTerminals),
 						ContextKeyExpr.equals('view', TERMINAL_VIEW_ID),
 						ContextKeyExpr.has(`config.${TerminalSettingId.TabsEnabled}`),
 						ContextKeyExpr.or(
@@ -557,32 +518,6 @@ export function setupTerminalMenus(): void {
 					group: 'navigation',
 					order: 8,
 					when: ContextKeyExpr.equals('view', TERMINAL_VIEW_ID),
-					isHiddenByDefault: true
-				},
-			},
-			{
-				id: MenuId.ViewTitle,
-				item: {
-					command: {
-						id: TerminalCommandId.StartVoice,
-						title: localize('workbench.action.terminal.startVoice', "Start Dictation"),
-					},
-					group: 'navigation',
-					order: 9,
-					when: ContextKeyExpr.and(ContextKeyExpr.equals('view', TERMINAL_VIEW_ID), TerminalContextKeys.terminalDictationInProgress.toNegated()),
-					isHiddenByDefault: true
-				},
-			},
-			{
-				id: MenuId.ViewTitle,
-				item: {
-					command: {
-						id: TerminalCommandId.StopVoice,
-						title: localize('workbench.action.terminal.stopVoice', "Stop Dictation"),
-					},
-					group: 'navigation',
-					order: 9,
-					when: ContextKeyExpr.and(ContextKeyExpr.equals('view', TERMINAL_VIEW_ID), TerminalContextKeys.terminalDictationInProgress),
 					isHiddenByDefault: true
 				},
 			},
@@ -790,28 +725,6 @@ export function setupTerminalMenus(): void {
 			group: 'navigation',
 			order: 8,
 			when: ResourceContextKey.Scheme.isEqualTo(Schemas.vscodeTerminal),
-			isHiddenByDefault: true
-		});
-		MenuRegistry.appendMenuItem(menuId, {
-			command: {
-				id: TerminalCommandId.StartVoice,
-				title: localize('workbench.action.terminal.startVoiceEditor', "Start Dictation"),
-				icon: Codicon.mic
-			},
-			group: 'navigation',
-			order: 9,
-			when: ContextKeyExpr.and(ResourceContextKey.Scheme.isEqualTo(Schemas.vscodeTerminal), TerminalContextKeys.terminalDictationInProgress.negate()),
-			isHiddenByDefault: true
-		});
-		MenuRegistry.appendMenuItem(menuId, {
-			command: {
-				id: TerminalCommandId.StopVoice,
-				title: localize('workbench.action.terminal.stopVoiceEditor', "Stop Dictation"),
-				icon: Codicon.run
-			},
-			group: 'navigation',
-			order: 10,
-			when: ContextKeyExpr.and(ResourceContextKey.Scheme.isEqualTo(Schemas.vscodeTerminal), HasSpeechProvider, TerminalContextKeys.terminalDictationInProgress),
 			isHiddenByDefault: true
 		});
 	}

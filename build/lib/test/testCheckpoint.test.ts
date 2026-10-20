@@ -69,8 +69,7 @@ suite('Product test checkpoints', () => {
 				...Object.fromEntries([
 					'UNIT_NODE', 'UNIT_BROWSER_CHROMIUM', 'UNIT_BROWSER_WEBKIT',
 					'INTEGRATION_ELECTRON', 'INTEGRATION_BROWSER_CHROMIUM', 'INTEGRATION_BROWSER_FIREFOX', 'INTEGRATION_BROWSER_WEBKIT', 'INTEGRATION_REMOTE',
-					'SMOKE_ELECTRON', 'SMOKE_AGENTS_PAC_PROXY', 'SMOKE_AGENTS_KERBEROS_PAC_PROXY', 'SMOKE_BROWSER_CHROMIUM', 'SMOKE_REMOTE',
-					'COPILOT_EXTENSION', 'COPILOT_COMPLETIONS_CORE', 'COPILOT_SANITY',
+					'SMOKE_ELECTRON', 'SMOKE_BROWSER_CHROMIUM', 'SMOKE_REMOTE',
 				].flatMap(id => [`TEST_CHECKPOINT_${id}_HIT`, `TEST_CHECKPOINT_${id}_READY`].map(name => [name, 'false']))),
 			},
 			reused: [`Reusing successful test unit-electron: ${artifactName('unit-electron')}`],

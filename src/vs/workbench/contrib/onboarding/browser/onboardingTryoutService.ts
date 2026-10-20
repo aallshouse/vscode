@@ -13,11 +13,10 @@ import { localize } from '../../../../nls.js';
 import { IContextKeyService } from '../../../../platform/contextkey/common/contextkey.js';
 import { IOnboardingTryoutRunOptions, isOnboardingTryoutSource, OnboardingTryoutSource } from '../../../../platform/onboarding/common/onboardingTryoutHandoff.js';
 import { ITelemetryService } from '../../../../platform/telemetry/common/telemetry.js';
-import { IChatEntitlementService, chatRequiresSetup } from '../../../services/chat/common/chatEntitlementService.js';
 import { IWorkbenchEnvironmentService } from '../../../services/environment/common/environmentService.js';
 import { onboardingScenarioRegistry } from '../common/onboardingRegistry.js';
 import { IOnboardingRunResult, IOnboardingScenario } from '../common/onboardingScenario.js';
-import { AGENTS_WINDOW_TRYOUT_PRESENTATION_KIND, IOnboardingTryoutRunContext, IOnboardingTryoutScenario, IOnboardingTryoutService, IOnboardingTryoutUnavailable, onboardingTryoutPresentationRegistry, OnboardingTryoutAvailability, OnboardingTryoutResult, parseOnboardingTryoutArguments, RUN_ONBOARDING_TRYOUT_COMMAND_ID } from '../common/onboardingTryout.js';
+import { IOnboardingTryoutRunContext, IOnboardingTryoutScenario, IOnboardingTryoutService, IOnboardingTryoutUnavailable, onboardingTryoutPresentationRegistry, OnboardingTryoutAvailability, OnboardingTryoutResult, parseOnboardingTryoutArguments, RUN_ONBOARDING_TRYOUT_COMMAND_ID } from '../common/onboardingTryout.js';
 
 type TryoutEvent = {
 	tryoutId: string;
@@ -78,7 +77,6 @@ export class OnboardingTryoutService extends Disposable implements IOnboardingTr
 
 	constructor(
 		@IContextKeyService private readonly contextKeyService: IContextKeyService,
-		@IChatEntitlementService private readonly chatEntitlementService: IChatEntitlementService,
 		@IWorkbenchEnvironmentService private readonly environmentService: IWorkbenchEnvironmentService,
 		@ITelemetryService private readonly telemetryService: ITelemetryService,
 	) {
@@ -91,9 +89,6 @@ export class OnboardingTryoutService extends Disposable implements IOnboardingTr
 				this._onDidChange.fire();
 			}
 		}));
-		this._register(chatEntitlementService.onDidChangeSentiment(() => this._onDidChange.fire()));
-		this._register(chatEntitlementService.onDidChangeEntitlement(() => this._onDidChange.fire()));
-		this._register(chatEntitlementService.onDidChangeAnonymous(() => this._onDidChange.fire()));
 		this._register(toDisposable(() => this.activeRun?.store.dispose()));
 		this.refreshContributions();
 	}
@@ -132,42 +127,10 @@ export class OnboardingTryoutService extends Disposable implements IOnboardingTr
 			return this.unavailable();
 		}
 
-		if (scenario.tryout.isAI && this.chatEntitlementService.sentiment.hidden) {
+		// AI removed: AI tryouts and tryouts that target the Agents window are
+		// never offered in this build.
+		if (scenario.tryout.isAI || scenario.tryout.targetWindow === 'agents') {
 			return { kind: 'hidden' };
-		}
-
-		if (scenario.tryout.targetWindow === 'agents' && !this.environmentService.isSessionsWindow) {
-			const presentation = onboardingTryoutPresentationRegistry.get(AGENTS_WINDOW_TRYOUT_PRESENTATION_KIND);
-			return presentation
-				? presentation.getAvailability(scenario)
-				: { kind: 'unavailable', message: localize('onboarding.tryout.agentsUnavailable', "This example requires the desktop Agents window.") };
-		}
-
-		if (scenario.tryout.isAI) {
-			const sentiment = this.chatEntitlementService.sentiment;
-			if (sentiment.disabledInWorkspace) {
-				return {
-					kind: 'unavailable',
-					message: localize('onboarding.tryout.chatDisabledInWorkspace', "Chat is disabled in this workspace."),
-				};
-			}
-			if (chatRequiresSetup({
-				completed: !!sentiment.completed,
-				disabled: !!sentiment.disabled,
-				untrusted: !!sentiment.untrusted,
-				entitlement: this.chatEntitlementService.entitlement,
-				anonymous: this.chatEntitlementService.anonymous,
-				hasByokModels: this.chatEntitlementService.hasByokModels,
-			})) {
-				return {
-					kind: 'unavailable',
-					message: localize('onboarding.tryout.chatSetupRequired', "Set up Chat before trying this example."),
-					action: {
-						label: localize('onboarding.tryout.setUpChat', "Set Up Chat"),
-						command: { id: 'workbench.action.chat.triggerSetup' },
-					},
-				};
-			}
 		}
 
 		if (scenario.when && !this.contextKeyService.contextMatchesRules(scenario.when)) {
@@ -186,9 +149,7 @@ export class OnboardingTryoutService extends Disposable implements IOnboardingTr
 	}
 
 	private getPresentationKind(scenario: IOnboardingTryoutScenario): string {
-		return scenario.tryout.targetWindow === 'agents' && !this.environmentService.isSessionsWindow
-			? AGENTS_WINDOW_TRYOUT_PRESENTATION_KIND
-			: scenario.presentation.kind;
+		return scenario.presentation.kind;
 	}
 
 	run(id: string, token = CancellationToken.None, options?: IOnboardingTryoutRunOptions): Promise<OnboardingTryoutResult> {
